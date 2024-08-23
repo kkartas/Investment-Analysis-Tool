@@ -40,7 +40,7 @@ The Investment Analysis Tool is an advanced Python application designed for indi
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/yourusername/investment-analysis-tool.git
+    git clone https://github.com/kkartas/investment-analysis-tool.git
     cd investment-analysis-tool
     ```
 
