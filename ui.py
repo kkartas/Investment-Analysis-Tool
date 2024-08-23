@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QRadioButton, QTextEdit,
-    QComboBox, QSpinBox, QMessageBox, QDateEdit, QSizePolicy, QFrame, QToolButton, QGroupBox  # Added QGroupBox here
+    QLabel, QLineEdit, QPushButton, QTextEdit,
+    QComboBox, QSpinBox, QMessageBox, QDateEdit, QSizePolicy, QFrame, QToolButton, QGroupBox
 )
 from PyQt5.QtGui import QIcon, QFont, QPixmap
 from PyQt5.QtCore import Qt, QSize, QDate
@@ -86,17 +86,14 @@ class InvestmentToolApp(QMainWindow):
         layout = QVBoxLayout()
 
         # Data Source & Date Range GroupBox
-        data_source_group = QGroupBox("Data Source and Time Period")
+        data_source_group = QGroupBox("Time Period")
         data_source_layout = QVBoxLayout()
 
-        # Data Source Selection Layout
-        radio_layout = QHBoxLayout()
-        self.yfinance_radio = QRadioButton("Fetch from Yahoo! Finance")
-        self.yfinance_radio.setChecked(True)
-
         # Stock Symbol Input
+        symbol_layout = QHBoxLayout()
+        stock_symbol_label = QLabel("Stock Symbol:")
         self.stock_symbol_input = QLineEdit()
-        self.stock_symbol_input.setPlaceholderText("Stock Symbol")
+        self.stock_symbol_input.setPlaceholderText("Enter Stock Symbol")
         self.stock_symbol_input.setFixedWidth(200)
 
         # Load Button
@@ -104,11 +101,11 @@ class InvestmentToolApp(QMainWindow):
         load_button.setIcon(QIcon('resources/icons/load_icon.png'))
         load_button.clicked.connect(self.load_data)
 
-        radio_layout.addWidget(self.yfinance_radio)
-        radio_layout.addWidget(self.stock_symbol_input)
-        radio_layout.addWidget(load_button)
+        symbol_layout.addWidget(stock_symbol_label)
+        symbol_layout.addWidget(self.stock_symbol_input)
+        symbol_layout.addWidget(load_button)
 
-        data_source_layout.addLayout(radio_layout)
+        data_source_layout.addLayout(symbol_layout)
 
         # Date Range Selection
         date_range_layout = QHBoxLayout()
