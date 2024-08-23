@@ -39,22 +39,22 @@ The Investment Analysis Tool is an advanced Python application designed for indi
 
 1. **Clone the repository:**
 
-    \`\`\`bash
+    ```bash
     git clone https://github.com/yourusername/investment-analysis-tool.git
     cd investment-analysis-tool
-    \`\`\`
+    ```
 
 2. **Install the required dependencies:**
 
-    \`\`\`bash
+    ```bash
     pip install -r requirements.txt
-    \`\`\`
+    ```
 
 3. **Run the application:**
 
-    \`\`\`bash
+    ```bash
     python main.py
-    \`\`\`
+    ```
 
 ## Usage
 
@@ -96,7 +96,7 @@ The Investment Analysis Tool is an advanced Python application designed for indi
 
 ## Project Structure
 
-\`\`\`
+```plaintext
 ├── dca_calculations.py  # Contains functions for DCA calculations
 ├── load.py              # Handles data fetching from Yahoo Finance
 ├── main.py              # Entry point to run the application
@@ -104,7 +104,7 @@ The Investment Analysis Tool is an advanced Python application designed for indi
 ├── ui.py                # Defines the user interface using PyQt5
 ├── requirements.txt     # Python dependencies
 └── README.md            # Project documentation
-\`\`\`
+```
 
 ## License
 
