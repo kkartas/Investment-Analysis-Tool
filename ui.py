@@ -142,10 +142,15 @@ class InvestmentToolApp(QMainWindow):
         if not stock_symbol:
             QMessageBox.warning(self, "Input Error", "Please enter a stock symbol.")
             return
-        from load import fetch_yfinance_data
-        self.data = fetch_yfinance_data(stock_symbol)
 
-        if self.data is not None:
+        from load import fetch_yfinance_data
+
+        self.data, error_message = fetch_yfinance_data(stock_symbol)
+        if self.data is None:
+            QMessageBox.critical(self, "Error", f"Failed to fetch data for {stock_symbol}. {error_message}")
+            return
+
+        try:
             # Fetch the stock name and store it
             ticker = yf.Ticker(stock_symbol)
             self.stock_name = ticker.info.get('longName', stock_symbol)
@@ -169,9 +174,9 @@ class InvestmentToolApp(QMainWindow):
 
             # Automatically run stock analysis after data is loaded
             self.run_stock_analysis()
-        else:
-            # Show an error message only if the data could not be loaded
-            QMessageBox.critical(self, "Error", "Failed to load data.")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"An error occurred while processing data for {stock_symbol}.\n\nError details: {str(e)}")
 
     def create_dca_section(self):
         # Content of the DCA section
