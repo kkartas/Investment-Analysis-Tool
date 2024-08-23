@@ -1,9 +1,16 @@
-# dca_calculations.py
-
 import numpy as np
 import pandas as pd
 
 def calculate_average_interest(data):
+    """
+    Calculate the average annual return based on the historical closing prices in the data.
+    
+    Args:
+        data (pd.DataFrame): A DataFrame containing historical stock data with a 'Close' column.
+    
+    Returns:
+        float: The calculated average annual return.
+    """
     data['Return'] = data['Close'].pct_change()
     return data['Return'].mean() * 252  # Annualized daily return
 
@@ -11,9 +18,10 @@ def dca_calculation(data, initial_investment, periodic_investment, period, years
     if average_interest is None:
         average_interest = calculate_average_interest(data)
     
-    periods_per_year = {'daily': 252, 'monthly': 12, 'yearly': 1}[period]
-    total_periods = periods_per_year * years
-    rate_per_period = average_interest / periods_per_year
+    # Update periods_per_year to include 'quarterly'
+    periods_per_year = {'daily': 252, 'weekly': 52, 'monthly': 12, 'quarterly': 4, 'yearly': 1}
+    total_periods = periods_per_year[period] * years
+    rate_per_period = average_interest / periods_per_year[period]
 
     total_invested = initial_investment
     future_value = initial_investment
@@ -35,4 +43,21 @@ def dca_calculation(data, initial_investment, periodic_investment, period, years
         invested_values.append(total_invested)
 
     total_profit = reinvested_profit + profit_taken
-    return total_invested, future_value, total_profit, profit_taken, reinvested_profit, future_values, invested_values
+
+    # Handle frequency for quarterly periods in dates
+    freq_map = {
+        'daily': 'B',
+        'weekly': 'W',
+        'monthly': 'M',
+        'quarterly': 'Q',
+        'yearly': 'A'
+    }
+    dates = pd.date_range(start=pd.Timestamp.today(), periods=total_periods, freq=freq_map[period])
+
+    data_points = {
+        'dates': dates,
+        'invested': invested_values,
+        'value': future_values
+    }
+
+    return total_invested, future_value, total_profit, data_points

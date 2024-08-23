@@ -1,356 +1,251 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.pyplot as plt
+import sys
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton, QRadioButton, QGroupBox, QTextEdit, QComboBox, QSpinBox, QMessageBox
+)
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+import plotly.graph_objs as go
+import plotly.io as pio
 import pandas as pd
-import numpy as np
-import yfinance as yf
+from dca_calculations import calculate_average_interest
 
-from dca_calculations import dca_calculation, calculate_average_interest
-from stock_analysis import calculate_indicators, get_latest_recommendation
+class InvestmentToolApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Investment Analysis Tool")
+        self.setGeometry(100, 100, 1200, 800)
+        self.setWindowIcon(QIcon('resources/icons/app_icon.png'))
 
-class ScrollableFrame(ttk.Frame):
-    def __init__(self, container, *args, **kwargs):
-        super().__init__(container, *args, **kwargs)
-        canvas = tk.Canvas(self)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = ttk.Frame(canvas)
+        self.data = None  # To store loaded data
+        self.mean_annual_return = None  # To store calculated mean annual return
 
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
-            )
-        )
+        self.init_ui()
 
-        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+    def init_ui(self):
+        # Create central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # Create main layout
+        main_layout = QVBoxLayout()
+        central_widget.setLayout(main_layout)
 
-        # Enable mouse and touchpad scrolling
-        self.scrollable_frame.bind("<Enter>", self._bind_mouse_wheel)
-        self.scrollable_frame.bind("<Leave>", self._unbind_mouse_wheel)
+        # Create and add sections
+        main_layout.addLayout(self.create_data_source_section())
+        main_layout.addSpacing(20)
+        main_layout.addLayout(self.create_dca_section())
+        main_layout.addSpacing(20)
+        main_layout.addLayout(self.create_result_section())
 
-    def _bind_mouse_wheel(self, event):
-        self.bind_all("<MouseWheel>", self._on_mouse_wheel)
-        self.bind_all("<Button-4>", self._on_mouse_wheel)  # For Linux
-        self.bind_all("<Button-5>", self._on_mouse_wheel)  # For Linux
+    def create_data_source_section(self):
+        layout = QHBoxLayout()
 
-    def _unbind_mouse_wheel(self, event):
-        self.unbind_all("<MouseWheel>")
-        self.unbind_all("<Button-4>")  # For Linux
-        self.unbind_all("<Button-5>")  # For Linux
+        # Data Source GroupBox
+        data_source_group = QGroupBox("Data Source")
+        data_source_layout = QHBoxLayout()
 
-    def _on_mouse_wheel(self, event):
-        if event.num == 5 or event.delta < 0:
-            self.yview_scroll(1, "units")
-        elif event.num == 4 or event.delta > 0:
-            self.yview_scroll(-1, "units")
+        # Radio Buttons
+        self.yfinance_radio = QRadioButton("Fetch from yfinance")
+        self.csv_radio = QRadioButton("Load CSV File")
+        self.yfinance_radio.setChecked(True)
 
-class InvestmentToolApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Investment Tool")
-        self.root.state('zoomed')  # Open in full screen
-        self.data = None
-        self.use_custom_interest = False
+        # Stock Symbol Input
+        self.stock_symbol_input = QLineEdit()
+        self.stock_symbol_input.setPlaceholderText("Enter Stock Symbol (e.g., AAPL)")
+        self.stock_symbol_input.setFixedWidth(200)
 
-        self.create_widgets()
+        # Load Button
+        load_button = QPushButton("Load Data")
+        load_button.setIcon(QIcon('resources/icons/load_icon.png'))
+        load_button.clicked.connect(self.load_data)
 
-    def create_widgets(self):
-        self.frame = ScrollableFrame(self.root)
-        self.frame.pack(fill="both", expand=True)
+        # Add widgets to layout
+        data_source_layout.addWidget(self.yfinance_radio)
+        data_source_layout.addWidget(self.csv_radio)
+        data_source_layout.addWidget(self.stock_symbol_input)
+        data_source_layout.addWidget(load_button)
 
-        # Radio buttons for choosing data source
-        self.data_source_var = tk.StringVar(value='yfinance')
-        self.yfinance_radio = ttk.Radiobutton(self.frame.scrollable_frame, text="Fetch from yfinance", variable=self.data_source_var, value='yfinance')
-        self.yfinance_radio.grid(row=0, column=0, pady=10, sticky=tk.W)
-        self.csv_radio = ttk.Radiobutton(self.frame.scrollable_frame, text="Load CSV File", variable=self.data_source_var, value='csv')
-        self.csv_radio.grid(row=1, column=0, pady=10, sticky=tk.W)
+        data_source_group.setLayout(data_source_layout)
+        layout.addWidget(data_source_group)
 
-        self.stock_symbol_label = ttk.Label(self.frame.scrollable_frame, text="Stock Symbol (if using yfinance):")
-        self.stock_symbol_label.grid(row=2, column=0, pady=5, sticky=tk.W)
-        self.stock_symbol_entry = ttk.Entry(self.frame.scrollable_frame)
-        self.stock_symbol_entry.grid(row=2, column=1, pady=5)
+        return layout
 
-        self.load_button = ttk.Button(self.frame.scrollable_frame, text="Load Data", command=self.load_data)
-        self.load_button.grid(row=3, column=0, pady=10)
+    def create_dca_section(self):
+        layout = QVBoxLayout()
 
-        self.analysis_button = ttk.Button(self.frame.scrollable_frame, text="Run Stock Analysis", command=self.run_stock_analysis, state=tk.DISABLED)
-        self.analysis_button.grid(row=4, column=0, pady=10)
+        # DCA GroupBox
+        dca_group = QGroupBox("DCA (Dollar-Cost Averaging) Calculator")
+        dca_layout = QVBoxLayout()
 
-        self.savings_plan_var = tk.BooleanVar()
-        self.savings_plan_checkbox = ttk.Checkbutton(self.frame.scrollable_frame, text="Create a Savings Plan", variable=self.savings_plan_var, command=self.toggle_dca_options)
-        self.savings_plan_checkbox.grid(row=5, column=0, pady=10)
-        self.savings_plan_checkbox.config(state=tk.NORMAL)  # Always enabled
+        form_layout = QVBoxLayout()
+        initial_investment_label = QLabel("Initial Investment ($):")
+        self.initial_investment_input = QLineEdit()
+        self.initial_investment_input.setPlaceholderText("e.g., 1000")
+        form_layout.addWidget(initial_investment_label)
+        form_layout.addWidget(self.initial_investment_input)
 
-        self.dca_frame = ttk.LabelFrame(self.frame.scrollable_frame, text="DCA Savings Plan Options", padding="10")
-        self.dca_frame.grid(row=6, column=0, pady=10, sticky=(tk.W, tk.E))
-        self.dca_frame.grid_remove()  # Initially hide the DCA options
+        periodic_investment_label = QLabel("Periodic Investment ($):")
+        self.periodic_investment_input = QLineEdit()
+        self.periodic_investment_input.setPlaceholderText("e.g., 200")
+        form_layout.addWidget(periodic_investment_label)
+        form_layout.addWidget(self.periodic_investment_input)
 
-        self.initial_label = ttk.Label(self.dca_frame, text="Initial Investment:")
-        self.initial_label.grid(row=0, column=0, pady=5, sticky=tk.W)
-        self.initial_entry = ttk.Entry(self.dca_frame)
-        self.initial_entry.grid(row=0, column=1, pady=5)
+        period_label = QLabel("Investment Frequency:")
+        self.period_combo = QComboBox()
+        self.period_combo.addItems(["Weekly", "Monthly", "Quarterly", "Yearly"])
+        form_layout.addWidget(period_label)
+        form_layout.addWidget(self.period_combo)
 
-        self.periodic_label = ttk.Label(self.dca_frame, text="Periodic Investment:")
-        self.periodic_label.grid(row=1, column=0, pady=5, sticky=tk.W)
-        self.periodic_entry = ttk.Entry(self.dca_frame)
-        self.periodic_entry.grid(row=1, column=1, pady=5)
+        duration_label = QLabel("Investment Duration (Years):")
+        self.duration_input = QSpinBox()
+        self.duration_input.setRange(1, 50)
+        self.duration_input.setValue(5)
+        form_layout.addWidget(duration_label)
+        form_layout.addWidget(self.duration_input)
 
-        self.period_label = ttk.Label(self.dca_frame, text="Investment Period:")
-        self.period_label.grid(row=2, column=0, pady=5, sticky=tk.W)
-        self.period_var = tk.StringVar(value='daily')
-        self.daily_radio = ttk.Radiobutton(self.dca_frame, text="Daily", variable=self.period_var, value='daily')
-        self.daily_radio.grid(row=2, column=1, pady=5, sticky=tk.W)
-        self.monthly_radio = ttk.Radiobutton(self.dca_frame, text="Monthly", variable=self.period_var, value='monthly')
-        self.monthly_radio.grid(row=2, column=2, pady=5, sticky=tk.W)
-        self.yearly_radio = ttk.Radiobutton(self.dca_frame, text="Yearly", variable=self.period_var, value='yearly')
-        self.yearly_radio.grid(row=2, column=3, pady=5, sticky=tk.W)
+        return_label = QLabel("Expected Annual Return (%):")
+        self.return_input = QLineEdit()
+        self.return_input.setPlaceholderText("e.g., 7")
+        form_layout.addWidget(return_label)
+        form_layout.addWidget(self.return_input)
 
-        self.total_years_label = ttk.Label(self.dca_frame, text="Total Years:")
-        self.total_years_label.grid(row=3, column=0, pady=5, sticky=tk.W)
-        self.total_years_entry = ttk.Entry(self.dca_frame)
-        self.total_years_entry.grid(row=3, column=1, pady=5)
+        calculate_button = QPushButton("Calculate DCA")
+        calculate_button.setIcon(QIcon('resources/icons/calculate_icon.png'))
+        calculate_button.clicked.connect(self.run_dca_calculation)
+        form_layout.addWidget(calculate_button)
 
-        self.custom_interest_var = tk.BooleanVar()
-        self.custom_interest_checkbox = ttk.Checkbutton(self.dca_frame, text="Use Custom Annual Interest Rate", variable=self.custom_interest_var, command=self.toggle_custom_interest)
-        self.custom_interest_checkbox.grid(row=4, column=0, pady=10, sticky=tk.W)
+        dca_layout.addLayout(form_layout)
+        dca_group.setLayout(dca_layout)
+        layout.addWidget(dca_group)
 
-        self.custom_interest_frame = ttk.LabelFrame(self.dca_frame, text="Custom Interest Rate", padding="10")
-        self.custom_interest_frame.grid(row=5, column=0, pady=10, sticky=(tk.W, tk.E))
-        self.custom_interest_frame.grid_remove()  # Initially hide the custom interest options
+        return layout
 
-        self.custom_interest_label = ttk.Label(self.custom_interest_frame, text="Annual Interest Rate (%):")
-        self.custom_interest_label.grid(row=0, column=0, pady=5, sticky=tk.W)
-        self.custom_interest_entry = ttk.Entry(self.custom_interest_frame)
-        self.custom_interest_entry.grid(row=0, column=1, pady=5)
+    def create_result_section(self):
+        layout = QHBoxLayout()
 
-        self.reinvest_var = tk.BooleanVar(value=True)
-        self.reinvest_checkbox = ttk.Checkbutton(self.dca_frame, text="Reinvest Interest Profit", variable=self.reinvest_var)
-        self.reinvest_checkbox.grid(row=6, column=0, pady=10, sticky=tk.W)
-        self.reinvest_checkbox.grid_remove()  # Hide initially, shown only if custom interest rate is used
+        # Text Result Display
+        self.result_text = QTextEdit()
+        self.result_text.setReadOnly(True)
+        self.result_text.setFixedWidth(400)
+        self.result_text.setStyleSheet("background-color: #f0f0f0; padding: 10px;")
 
-        self.calculate_button = ttk.Button(self.dca_frame, text="Calculate Savings Plan", command=self.run_dca)
-        self.calculate_button.grid(row=7, column=0, columnspan=2, pady=10)
+        # WebEngineView for Plotly
+        self.plot_view = QWebEngineView()
+        
+        layout.addWidget(self.result_text)
+        layout.addWidget(self.plot_view)
 
-        self.result_frame = ttk.LabelFrame(self.frame.scrollable_frame, text="Results", padding="10")
-        self.result_frame.grid(row=8, column=0, pady=10, sticky=(tk.W, tk.E))
-
-        self.result_text = tk.Text(self.result_frame, height=15, width=80, state=tk.DISABLED, font=("Helvetica", 12))
-        self.result_text.pack(pady=10)
-
-        self.figure = plt.Figure(figsize=(10, 6))
-        self.canvas = FigureCanvasTkAgg(self.figure, self.result_frame)
-        self.canvas.get_tk_widget().pack()
-
-        # Clear All Button
-        self.clear_button = ttk.Button(self.frame.scrollable_frame, text="Clear All", command=self.clear_all)
-        self.clear_button.grid(row=9, column=0, pady=10, sticky=tk.E)
-
-    def toggle_custom_interest(self):
-        if self.custom_interest_var.get():
-            self.custom_interest_frame.grid()  # Show the custom interest options
-            self.reinvest_checkbox.grid()  # Show the reinvest checkbox
-        else:
-            self.custom_interest_frame.grid_remove()  # Hide the custom interest options
-            self.reinvest_checkbox.grid_remove()  # Hide the reinvest checkbox
+        return layout
 
     def load_data(self):
-        data_source = self.data_source_var.get()
-        if data_source == 'yfinance':
-            stock_symbol = self.stock_symbol_entry.get()
+        if self.yfinance_radio.isChecked():
+            stock_symbol = self.stock_symbol_input.text().strip()
             if not stock_symbol:
-                messagebox.showerror("Error", "Please enter a stock symbol.")
+                QMessageBox.warning(self, "Input Error", "Please enter a stock symbol.")
                 return
-            self.data = self.fetch_yfinance_data(stock_symbol)
-        elif data_source == 'csv':
-            self.load_file()
+            from load import fetch_yfinance_data
+            self.data = fetch_yfinance_data(stock_symbol)
+        else:
+            from load import load_file
+            self.data = load_file()
 
         if self.data is not None:
-            messagebox.showinfo("Data Loaded", "Data loaded successfully!")
-            self.analysis_button.config(state=tk.NORMAL)
+            QMessageBox.information(self, "Success", "Data loaded successfully!")
+
+            # Calculate and set the mean annual return
+            self.mean_annual_return = calculate_average_interest(self.data)
+            self.return_input.setText(f"{self.mean_annual_return * 100:.2f}")
+
+            # Automatically run stock analysis after data is loaded
+            self.run_stock_analysis()
         else:
-            messagebox.showerror("Error", "Failed to load data. Please try again.")
-
-    def fetch_yfinance_data(self, symbol):
-        try:
-            data = yf.download(symbol, start="2000-01-01")
-            if data.empty:
-                messagebox.showerror("Error", "No data found for the symbol provided.")
-                return None
-            data.reset_index(inplace=True)
-            data['Date'] = pd.to_datetime(data['Date'])
-            data.set_index('Date', inplace=True)
-            return data
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to fetch data from yfinance: {e}")
-            return None
-
-    def load_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
-        if file_path:
-            self.data = pd.read_csv(file_path)
-
-            # Ensure the Date column is parsed and set as the index
-            self.data['Date'] = pd.to_datetime(self.data['Date'])
-            self.data.set_index('Date', inplace=True)
+            QMessageBox.critical(self, "Error", "Failed to load data.")
 
     def run_stock_analysis(self):
-        if self.data is not None:
-            calculate_indicators(self.data)
-            self.display_analysis_results()
-        else:
-            messagebox.showerror("Error", "No data loaded. Please load a CSV file first.")
+        from stock_analysis import calculate_indicators, get_latest_recommendation
 
-    def display_analysis_results(self):
-        self.result_text.config(state=tk.NORMAL)
-        self.result_text.delete('1.0', tk.END)
-
+        self.data = calculate_indicators(self.data)
         latest_data, recommendation = get_latest_recommendation(self.data)
 
-        result_text = (
-            f"Latest Close: {latest_data['Close']:.2f}\n"
-            f"50-day SMA: {latest_data['SMA_50']:.2f}\n"
-            f"200-day SMA: {latest_data['SMA_200']:.2f}\n"
-            f"RSI: {latest_data['RSI']:.2f}\n"
-            f"MACD: {latest_data['MACD']:.2f}\n"
-            f"Signal Line: {latest_data['Signal_Line']:.2f}\n"
-            f"Recommendation: {recommendation}"
-        )
-        
-        self.result_text.insert(tk.END, result_text)
-        self.result_text.config(state=tk.DISABLED)
+        result_text = f"""
+<b>Stock Analysis Results:</b><br>
+<b>Latest Close:</b> ${latest_data['Close']:.2f}<br>
+<b>50-day SMA:</b> ${latest_data['SMA_50']:.2f}<br>
+<b>200-day SMA:</b> ${latest_data['SMA_200']:.2f}<br>
+<b>RSI:</b> {latest_data['RSI']:.2f}<br>
+<b>MACD:</b> {latest_data['MACD']:.2f}<br>
+<b>Signal Line:</b> {latest_data['Signal_Line']:.2f}<br>
+<b>Recommendation:</b> {recommendation}
+"""
+        self.result_text.setHtml(result_text)
 
-        self.plot_analysis()
+        self.plot_stock_analysis()
 
-    def plot_analysis(self):
-        self.figure.clear()
+    def plot_stock_analysis(self):
+        fig = go.Figure()
 
-        filtered_data = self.data.dropna(subset=['SMA_50', 'SMA_200', 'RSI', 'MACD', 'Signal_Line'])
-        ax1, ax2, ax3 = self.figure.subplots(3, 1, sharex=True)
+        fig.add_trace(go.Scatter(x=self.data.index, y=self.data['Close'], mode='lines', name='Close Price'))
+        fig.add_trace(go.Scatter(x=self.data.index, y=self.data['SMA_50'], mode='lines', name='50-day SMA'))
+        fig.add_trace(go.Scatter(x=self.data.index, y=self.data['SMA_200'], mode='lines', name='200-day SMA'))
 
-        ax1.plot(filtered_data.index, filtered_data['Close'], label='Close Price')
-        ax1.plot(filtered_data.index, filtered_data['SMA_50'], label='50-day SMA', linestyle='--')
-        ax1.plot(filtered_data.index, filtered_data['SMA_200'], label='200-day SMA', linestyle='--')
-        ax1.set_title('Price and Moving Averages')
-        ax1.set_ylabel('Price')
-        ax1.legend()
-        ax1.grid(True)
+        fig.update_layout(title="Stock Analysis", xaxis_title="Date", yaxis_title="Price (USD)", template="plotly_white")
+        fig.update_xaxes(rangeslider_visible=True)
 
-        ax2.plot(filtered_data.index, filtered_data['RSI'], label='RSI')
-        ax2.axhline(70, color='red', linestyle='--')
-        ax2.axhline(30, color='green', linestyle='--')
-        ax2.set_title('Relative Strength Index (RSI)')
-        ax2.set_ylabel('RSI')
-        ax2.legend()
-        ax2.grid(True)
+        # Generate HTML content with Plotly's JavaScript included
+        html_content = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+       
+        self.plot_view.setHtml(html_content)
 
-        ax3.plot(filtered_data.index, filtered_data['MACD'], label='MACD')
-        ax3.plot(filtered_data.index, filtered_data['Signal_Line'], label='Signal Line', linestyle='--')
-        ax3.set_title('MACD and Signal Line')
-        ax3.set_ylabel('MACD')
-        ax3.legend()
-        ax3.grid(True)
-
-        self.canvas.draw()
-
-    def toggle_dca_options(self):
-        if self.savings_plan_var.get():
-            self.dca_frame.grid()  # Show the DCA options
-            if self.data is not None:
-                average_interest = calculate_average_interest(self.data)
-                messagebox.showinfo("Average Annual Interest", f"The average annual interest calculated from the data is {average_interest:.2%}.")
-                self.custom_interest_entry.delete(0, tk.END)
-                self.custom_interest_entry.insert(0, f"{average_interest * 100:.2f}")
-                self.custom_interest_checkbox.config(state=tk.DISABLED)
-                self.reinvest_checkbox.grid_remove()  # Hide reinvest checkbox when using calculated interest
-            else:
-                self.custom_interest_checkbox.config(state=tk.NORMAL)
-        else:
-            self.dca_frame.grid_remove()  # Hide the DCA options
-
-    def run_dca(self):
-        if self.custom_interest_var.get():
-            try:
-                custom_interest_rate = float(self.custom_interest_entry.get()) / 100
-            except ValueError:
-                messagebox.showerror("Invalid Input", "Please enter a valid numeric interest rate.")
-                return
-            reinvest = self.reinvest_var.get()
-        elif self.data is not None:
-            custom_interest_rate = calculate_average_interest(self.data)
-            reinvest = True  # Automatically reinvest when using calculated interest
-        else:
-            messagebox.showerror("Error", "No data loaded or custom interest rate provided.")
-            return
-
+    def run_dca_calculation(self):
         try:
-            initial_investment = float(self.initial_entry.get())
-            periodic_investment = float(self.periodic_entry.get())
-            period = self.period_var.get()
-            years = int(self.total_years_entry.get())
+            initial_investment = float(self.initial_investment_input.text())
+            periodic_investment = float(self.periodic_investment_input.text())
+            period = self.period_combo.currentText().lower()  # Changed to lowercase for consistency
+            years = int(self.duration_input.value())
+            annual_return = float(self.return_input.text()) / 100
         except ValueError:
-            messagebox.showerror("Invalid Input", "Please enter valid numeric values for investments.")
+            QMessageBox.warning(self, "Input Error", "Please enter valid numerical values.")
             return
 
-        total_invested, future_value, total_profit, _, _, future_values, invested_values = dca_calculation(
-            self.data if self.data is not None else pd.DataFrame(), 
-            initial_investment, 
-            periodic_investment, 
-            period, 
-            years, 
-            average_interest=custom_interest_rate, 
-            reinvest=reinvest
+        from dca_calculations import dca_calculation
+
+        total_invested, future_value, total_profit, data_points = dca_calculation(
+            self.data,  # Pass self.data to use the loaded data for calculations
+            initial_investment,
+            periodic_investment,
+            period,
+            years,
+            average_interest=annual_return
         )
 
-        self.display_dca_results(total_invested, future_value, total_profit)
-        self.plot_dca_results(future_values, invested_values, years)
+        result_text = f"""
+<b>DCA Calculation Results:</b><br>
+<b>Total Invested:</b> ${total_invested:,.2f}<br>
+<b>Future Value:</b> ${future_value:,.2f}<br>
+<b>Total Profit:</b> ${total_profit:,.2f}
+"""
+        self.result_text.setHtml(result_text)
 
-    def display_dca_results(self, total_invested, future_value, total_profit):
-        self.result_text.config(state=tk.NORMAL)
-        self.result_text.insert(tk.END, f"\n\nDCA Savings Plan:\n")
-        result_text = (
-            f"Total Invested: ${total_invested:,.2f}\n"
-            f"Future Value: ${future_value:,.2f}\n"
-            f"Total Profit: ${total_profit:,.2f}\n"
-        )
-        self.result_text.insert(tk.END, result_text)
-        self.result_text.config(state=tk.DISABLED)
+        self.plot_dca_growth(data_points)
 
-    def plot_dca_results(self, future_values, invested_values, years):
-        total_periods = len(future_values) - 1
-        years_labels = np.linspace(0, years, num=total_periods + 1)
+    def plot_dca_growth(self, data_points):
+        fig = go.Figure()
 
-        self.figure.clear()
-        ax = self.figure.add_subplot(111)
-        ax.plot(years_labels, future_values, label='Future Value')
-        ax.plot(years_labels, invested_values, label='Total Invested', linestyle='--')
-        ax.set_title('DCA Investment Growth')
-        ax.set_xlabel('Years')
-        ax.set_ylabel('Money ($)')
-        ax.legend()
-        ax.grid(True)
-        self.canvas.draw()
+        fig.add_trace(go.Scatter(x=data_points['dates'], y=data_points['invested'], mode='lines', name='Total Invested'))
+        fig.add_trace(go.Scatter(x=data_points['dates'], y=data_points['value'], mode='lines', name='Portfolio Value'))
 
-    def clear_all(self):
-        self.data = None
-        self.analysis_button.config(state=tk.DISABLED)
-        self.initial_entry.delete(0, tk.END)
-        self.periodic_entry.delete(0, tk.END)
-        self.total_years_entry.delete(0, tk.END)
-        self.custom_interest_entry.delete(0, tk.END)
-        self.result_text.config(state=tk.NORMAL)
-        self.result_text.delete('1.0', tk.END)
-        self.result_text.config(state=tk.DISABLED)
-        self.figure.clear()
-        self.canvas.draw()
-        self.custom_interest_checkbox.config(state=tk.NORMAL)
-        self.reinvest_checkbox.grid_remove()  # Hide the reinvest checkbox
+        fig.update_layout(title="DCA Investment Growth Over Time", xaxis_title="Time", yaxis_title="Amount (USD)", template="plotly_white")
+        fig.update_xaxes(rangeslider_visible=True)
+
+        # Generate HTML content with Plotly's JavaScript included
+        html_content = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+        
+        self.plot_view.setHtml(html_content)
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = InvestmentToolApp(root)
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = InvestmentToolApp()
+    window.show()
+    sys.exit(app.exec_())
