@@ -86,7 +86,7 @@ class InvestmentToolApp(QMainWindow):
         layout = QVBoxLayout()
 
         # Data Source & Date Range GroupBox
-        data_source_group = QGroupBox("Time Period")
+        data_source_group = QGroupBox("Stock")
         data_source_layout = QVBoxLayout()
 
         # Stock Symbol Input
