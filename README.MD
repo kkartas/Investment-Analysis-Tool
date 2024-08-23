@@ -96,7 +96,7 @@ The Investment Analysis Tool is an advanced Python application designed for indi
 
 ## Project Structure
 
-\`\`\`plaintext
+\`\`\`
 ├── dca_calculations.py  # Contains functions for DCA calculations
 ├── load.py              # Handles data fetching from Yahoo Finance
 ├── main.py              # Entry point to run the application
