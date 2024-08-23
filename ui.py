@@ -1,16 +1,16 @@
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QRadioButton, QGroupBox, QTextEdit,
-    QComboBox, QSpinBox, QMessageBox, QDateEdit, QSizePolicy, QFrame, QToolButton
+    QLabel, QLineEdit, QPushButton, QRadioButton, QTextEdit,
+    QComboBox, QSpinBox, QMessageBox, QDateEdit, QSizePolicy, QFrame, QToolButton, QGroupBox  # Added QGroupBox here
 )
 from PyQt5.QtGui import QIcon, QFont, QPixmap
-from PyQt5.QtCore import Qt, QSize, QDate  # Import QDate here
-from PyQt5.QtWebEngineWidgets import QWebEngineView  # Import QWebEngineView
+from PyQt5.QtCore import Qt, QSize, QDate
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from datetime import datetime, timedelta
-import yfinance as yf  # Import yfinance as yf
+import yfinance as yf
 from dca_calculations import calculate_average_interest
-import plotly.graph_objs as go  # Import Plotly for creating figures
-import plotly.io as pio  # Import Plotly I/O for generating HTML content
+import plotly.graph_objs as go
+import plotly.io as pio
 
 
 class CollapsibleSection(QWidget):
@@ -45,6 +45,7 @@ class CollapsibleSection(QWidget):
         else:
             self.toggle_button.setArrowType(Qt.RightArrow)
             self.content_area.setMaximumHeight(0)
+
 
 class InvestmentToolApp(QMainWindow):
     def __init__(self):
@@ -91,7 +92,6 @@ class InvestmentToolApp(QMainWindow):
         # Data Source Selection Layout
         radio_layout = QHBoxLayout()
         self.yfinance_radio = QRadioButton("Fetch from Yahoo! Finance")
-        self.csv_radio = QRadioButton("Load CSV File")
         self.yfinance_radio.setChecked(True)
 
         # Stock Symbol Input
@@ -105,7 +105,6 @@ class InvestmentToolApp(QMainWindow):
         load_button.clicked.connect(self.load_data)
 
         radio_layout.addWidget(self.yfinance_radio)
-        radio_layout.addWidget(self.csv_radio)
         radio_layout.addWidget(self.stock_symbol_input)
         radio_layout.addWidget(load_button)
 
@@ -142,51 +141,40 @@ class InvestmentToolApp(QMainWindow):
         start_date = self.start_date_picker.date().toPyDate()
         end_date = self.end_date_picker.date().toPyDate()
 
-        if self.yfinance_radio.isChecked():
-            stock_symbol = self.stock_symbol_input.text().strip()
-            if not stock_symbol:
-                QMessageBox.warning(self, "Input Error", "Please enter a stock symbol.")
-                return
-            from load import fetch_yfinance_data
-            self.data = fetch_yfinance_data(stock_symbol)
+        stock_symbol = self.stock_symbol_input.text().strip()
+        if not stock_symbol:
+            QMessageBox.warning(self, "Input Error", "Please enter a stock symbol.")
+            return
+        from load import fetch_yfinance_data
+        self.data = fetch_yfinance_data(stock_symbol)
 
-            if self.data is not None:
-                # Fetch the stock name and store it
-                ticker = yf.Ticker(stock_symbol)
-                self.stock_name = ticker.info.get('longName', stock_symbol)
+        if self.data is not None:
+            # Fetch the stock name and store it
+            ticker = yf.Ticker(stock_symbol)
+            self.stock_name = ticker.info.get('longName', stock_symbol)
 
-                max_available_start = self.data.index.min().date()
-                max_available_end = self.data.index.max().date()
+            max_available_start = self.data.index.min().date()
+            max_available_end = self.data.index.max().date()
 
-                # Check if the user's selected dates are within the available data range
-                if start_date < max_available_start or end_date > max_available_end:
-                    QMessageBox.information(self, "Date Range Adjustment",
-                                            f"The data for {self.stock_name} is only available from {max_available_start} "
-                                            f"to {max_available_end}. The period has been adjusted accordingly.")
-                    start_date = max(max_available_start, start_date)
-                    end_date = min(max_available_end, end_date)
+            # Check if the user's selected dates are within the available data range
+            if start_date < max_available_start or end_date > max_available_end:
+                QMessageBox.information(self, "Date Range Adjustment",
+                                        f"The data for {self.stock_name} is only available from {max_available_start} "
+                                        f"to {max_available_end}. The period has been adjusted accordingly.")
+                start_date = max(max_available_start, start_date)
+                end_date = min(max_available_end, end_date)
 
-                self.data = self.data.loc[start_date:end_date]
+            self.data = self.data.loc[start_date:end_date]
 
-                # Calculate and set the mean annual return
-                self.mean_annual_return = calculate_average_interest(self.data)
-                self.return_input.setText(f"{self.mean_annual_return * 100:.2f}")
+            # Calculate and set the mean annual return
+            self.mean_annual_return = calculate_average_interest(self.data)
+            self.return_input.setText(f"{self.mean_annual_return * 100:.2f}")
 
-                # Automatically run stock analysis after data is loaded
-                self.run_stock_analysis()
-            else:
-                # Show an error message only if the data could not be loaded
-                QMessageBox.critical(self, "Error", "Failed to load data.")
+            # Automatically run stock analysis after data is loaded
+            self.run_stock_analysis()
         else:
-            from load import load_file
-            self.data = load_file()
-            if self.data is not None:
-                self.data = self.data.loc[start_date:end_date]
-                self.mean_annual_return = calculate_average_interest(self.data)
-                self.return_input.setText(f"{self.mean_annual_return * 100:.2f}")
-                self.run_stock_analysis()
-            else:
-                QMessageBox.critical(self, "Error", "Failed to load data.")
+            # Show an error message only if the data could not be loaded
+            QMessageBox.critical(self, "Error", "Failed to load data.")
 
     def create_dca_section(self):
         # Content of the DCA section

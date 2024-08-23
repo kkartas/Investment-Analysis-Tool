@@ -1,28 +1,30 @@
-# stock_analysis.py
-
 import pandas as pd
 
 def calculate_indicators(data):
+    data = data.copy()  # Avoid modifying the original DataFrame directly
     data['SMA_50'] = data['Close'].rolling(window=50).mean()
     data['SMA_200'] = data['Close'].rolling(window=200).mean()
+
     delta = data['Close'].diff()
-    up = delta.clip(lower=0)
-    down = -1 * delta.clip(upper=0)
-    avg_gain = up.rolling(window=14).mean()
-    avg_loss = down.rolling(window=14).mean()
-    rs = avg_gain / avg_loss
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
     data['RSI'] = 100 - (100 / (1 + rs))
-    exp1 = data['Close'].ewm(span=12, adjust=False).mean()
-    exp2 = data['Close'].ewm(span=26, adjust=False).mean()
-    data['MACD'] = exp1 - exp2
+
+    data['EMA_12'] = data['Close'].ewm(span=12, adjust=False).mean()
+    data['EMA_26'] = data['Close'].ewm(span=26, adjust=False).mean()
+    data['MACD'] = data['EMA_12'] - data['EMA_26']
     data['Signal_Line'] = data['MACD'].ewm(span=9, adjust=False).mean()
+
     return data
 
 def get_latest_recommendation(data):
-    latest = data.iloc[-1]
+    latest_data = data.dropna(subset=['SMA_50', 'SMA_200', 'RSI', 'MACD', 'Signal_Line']).iloc[-1]
+
     recommendation = "Hold"
-    if latest['SMA_50'] > latest['SMA_200'] and latest['RSI'] < 70 and latest['MACD'] > latest['Signal_Line']:
+    if latest_data['Close'] > latest_data['SMA_50'] > latest_data['SMA_200'] and latest_data['RSI'] < 70 and latest_data['MACD'] > latest_data['Signal_Line']:
         recommendation = "Buy"
-    elif latest['SMA_50'] < latest['SMA_200'] and latest['RSI'] > 30 and latest['MACD'] < latest['Signal_Line']:
+    elif latest_data['Close'] < latest_data['SMA_50'] < latest_data['SMA_200'] or latest_data['RSI'] > 70 or latest_data['MACD'] < latest_data['Signal_Line']:
         recommendation = "Sell"
-    return latest, recommendation
+
+    return latest_data, recommendation
