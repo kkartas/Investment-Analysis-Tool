@@ -1,7 +1,0 @@
-PyQt5==5.15.7
-PyQtWebEngine==5.15.5
-yfinance==0.2.18
-requests-cache==0.9.8
-plotly==5.10.0
-pandas==2.0.1
-numpy==1.23.5
