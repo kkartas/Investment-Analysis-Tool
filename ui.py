@@ -11,6 +11,7 @@ import yfinance as yf
 from dca_calculations import calculate_average_interest
 import plotly.graph_objs as go
 import plotly.io as pio
+import pandas as pd
 
 
 class CollapsibleSection(QWidget):
@@ -133,8 +134,9 @@ class InvestmentToolApp(QMainWindow):
         layout.addWidget(data_source_group)
 
         return layout
-
     def load_data(self):
+        import pandas as pd
+        
         start_date = self.start_date_picker.date().toPyDate()
         end_date = self.end_date_picker.date().toPyDate()
 
@@ -158,6 +160,11 @@ class InvestmentToolApp(QMainWindow):
             max_available_start = self.data.index.min().date()
             max_available_end = self.data.index.max().date()
 
+            # Convert start_date and end_date to timezone-aware datetime objects
+            tz_info = self.data.index.tz
+            start_date = pd.Timestamp(start_date).tz_localize(tz_info)
+            end_date = pd.Timestamp(end_date).tz_localize(tz_info)
+
             # Check if the user's selected dates are within the available data range
             if start_date < max_available_start or end_date > max_available_end:
                 QMessageBox.information(self, "Date Range Adjustment",
@@ -167,6 +174,11 @@ class InvestmentToolApp(QMainWindow):
                 end_date = min(max_available_end, end_date)
 
             self.data = self.data.loc[start_date:end_date]
+
+            # Check if the DataFrame is empty after applying the date filter
+            if self.data.empty:
+                QMessageBox.warning(self, "No Data", f"No data available for {stock_symbol} within the selected date range.")
+                return
 
             # Calculate and set the mean annual return
             self.mean_annual_return = calculate_average_interest(self.data)

@@ -30,6 +30,11 @@ def dca_calculation(data, initial_investment, periodic_investment, period, years
     profit_taken = 0
     reinvested_profit = 0
 
+    # Ensure that the number of periods does not exceed the length of the data available
+    if len(data) < total_periods:
+        total_periods = len(data)
+        print(f"Warning: The provided data is not sufficient for {years} years of {period} periods. Adjusting the number of periods to match available data.")
+    
     for i in range(1, total_periods + 1):
         interest_earned = future_value * rate_per_period
         if reinvest:
@@ -52,7 +57,15 @@ def dca_calculation(data, initial_investment, periodic_investment, period, years
         'quarterly': 'Q',
         'yearly': 'A'
     }
-    dates = pd.date_range(start=pd.Timestamp.today(), periods=total_periods, freq=freq_map[period])
+    
+    # Ensure dates don't exceed available data range
+    if period in freq_map:
+        if period == 'daily':
+            dates = pd.date_range(start=data.index.min(), periods=total_periods, freq=freq_map[period])
+        else:
+            dates = pd.date_range(start=data.index.min(), periods=total_periods, freq=freq_map[period])
+    else:
+        dates = pd.date_range(start=data.index.min(), periods=total_periods)
 
     data_points = {
         'dates': dates,
