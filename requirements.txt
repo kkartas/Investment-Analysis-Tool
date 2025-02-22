@@ -5,3 +5,5 @@ requests-cache==0.9.8
 plotly==5.10.0
 pandas==2.0.1
 numpy==1.23.5
+setuptools>=67.0.0
+wheel
