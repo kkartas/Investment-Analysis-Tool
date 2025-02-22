@@ -1,0 +1,21 @@
+{
+    "name": "Investment Analysis Tool",
+    "short_name": "InvestTool",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0078d7",
+    "icons": [
+      {
+        "src": "/static/icons/app_icon.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/static/icons/app_icon.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
+  

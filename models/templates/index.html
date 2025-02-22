@@ -1,0 +1,66 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <form method="POST">
+        <label for="symbol">Stock Symbol:</label>
+        <input type="text" name="symbol" id="symbol" value="{{ symbol }}" placeholder="e.g., AAPL" required>
+        <br>
+        <label for="start_date">Start Date:</label>
+        <input type="date" name="start_date" id="start_date" required>
+        <br>
+        <label for="end_date">End Date:</label>
+        <input type="date" name="end_date" id="end_date" required>
+        <br>
+        <button type="submit">Load Data</button>
+    </form>
+
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+
+    {% if analysis %}
+    <section>
+        <h2>Technical Analysis</h2>
+        <ul>
+            <li>Latest Close: {{ analysis.latest_close }}</li>
+            <li>50-day SMA: {{ analysis.sma_50 }}</li>
+            <li>200-day SMA: {{ analysis.sma_200 }}</li>
+            <li>RSI: {{ analysis.rsi }}</li>
+            <li>MACD: {{ analysis.macd }}</li>
+            <li>Signal Line: {{ analysis.signal_line }}</li>
+            <li>Upper Band: {{ analysis.upper_band }}</li>
+            <li>Lower Band: {{ analysis.lower_band }}</li>
+            <li>ATR: {{ analysis.atr }}</li>
+            <li>Recommendation: {{ analysis.recommendation }}</li>
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if fundamentals %}
+    <section>
+        <h2>Fundamentals</h2>
+        <ul>
+        {% for key, value in fundamentals.items() %}
+            <li><strong>{{ key }}:</strong> {{ value }}</li>
+        {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if options_chain %}
+    <section>
+        <h2>Options Chain</h2>
+        <div>
+            <h3>Calls</h3>
+            {{ options_chain.calls | safe }}
+        </div>
+        <div>
+            <h3>Puts</h3>
+            {{ options_chain.puts | safe }}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
