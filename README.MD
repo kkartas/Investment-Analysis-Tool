@@ -1,132 +1,130 @@
 # Investment Analysis Tool
 
-The **Investment Analysis Tool** is an advanced Python application designed for individual investors and financial analysts. It leverages real-time and historical data from Yahoo Finance to perform in-depth technical analysis, simulate investment strategies, and display key financial metrics. The tool now includes additional features such as an earnings display (using income statements), financial statements, dividend history, and options chain data—all in one modern, tabbed interface.
+The **Investment Analysis Tool** is an advanced Python application designed for individual investors and financial analysts. Built with a modern, fintech-inspired user interface, the tool leverages real-time and historical data from Yahoo Finance to perform in-depth technical analysis, simulate investment strategies using Dollar-Cost Averaging (DCA), and display key financial metrics. The app is built as a Progressive Web App (PWA) using Flask, Bootstrap 5, Chart.js, and Flatpickr.
 
 ## Features
 
-- **Technical Analysis & DCA Calculator**
-  - Calculates key technical indicators:
-    - 50-day & 200-day Simple Moving Averages (SMA)
-    - Relative Strength Index (RSI)
-    - Moving Average Convergence Divergence (MACD) and Signal Line
-    - Bollinger Bands (20-day Moving Average ± 2 standard deviations)
-    - Average True Range (ATR)
-  - Provides a buy/hold/sell recommendation based on indicator values.
-  - Interactive Plotly chart displaying price trends and technical indicators.
-  - Dollar-Cost Averaging (DCA) simulation with customizable investment parameters.
-
-- **Fundamentals**
-  - Displays fundamental data extracted from Yahoo Finance, including key ratios and metrics.
+### Technical Analysis
+- **Integrated Indicators Chart:**  
+  The main chart displays the stock’s Close Price along with key technical indicators:
+  - 50-day Simple Moving Average (SMA)
+  - 200-day Simple Moving Average (SMA)
+  - Moving Average Convergence Divergence (MACD)
+  - Relative Strength Index (RSI)
   
-- **Options Chain**
-  - Retrieves and displays options chain data (calls and puts) for the selected stock.
+  The chart uses dual y-axes to clearly display price-based values and momentum indicators. Missing data (for example, if the date range is too short for SMA200) is displayed as "N/A" while still plotting available data.
 
-- **Dividends**
-  - Presents a historical dividend history in an easy-to-read table format.
+### Dollar-Cost Averaging (DCA) Calculator
+- **Predefined Values & Dynamic Calculation:**  
+  When stock data is loaded, default values (e.g. \$1,000 initial, \$200 periodic, 5 years duration) are set and a DCA simulation is automatically calculated using the stock’s historical expected annual return.  
+- **Yearly Aggregated Results:**  
+  The DCA chart aggregates the simulation into yearly labels (e.g. 2025, 2026, etc.) on the x-axis.
+- **Formatted Results:**  
+  The results (Total Invested, Future Value, Total Profit) are formatted without decimals and with thousand separators for improved readability.
 
-- **Earnings**
-  - Shows upcoming calendar events from the earnings calendar.
-  - Displays historical annual and quarterly net income using income statement data (replacing deprecated earnings API).
+### Additional Modules
+- **Fundamentals:**  
+  Displays key fundamental data extracted from Yahoo Finance.
+- **Earnings Calendar:**  
+  Fetches upcoming earnings events using a third-party API (requires a valid API key). Returns an empty list if no data is available.
+- **Options Chain:**  
+  Retrieves and displays current options chain data (calls and puts) for the selected stock.
+- **News:**  
+  Displays up to 10 recent news items related to the stock with title, publisher, and publication date formatted as DD/MM/YYYY HH:MM.
 
-- **Financials**
-  - Lets the user switch between viewing the Balance Sheet, Income Statement, and Cash Flow Statement.
+### Modern UI & PWA
+- **Fintech-Inspired Design:**  
+  Uses a clean, card-based layout, modern sans-serif fonts (e.g. Inter from Google Fonts), and a refined color palette.
+- **Responsive Tabbed Navigation:**  
+  Users can switch seamlessly between Stock Data (with technical analysis), DCA Calculator, Fundamentals, Earnings, Options Chain, and News.
+- **Progressive Web App (PWA):**  
+  The application includes a manifest and service worker for caching assets and offline support.
+
+### Performance Improvements
+- **Data Caching:**  
+  Historical stock data is cached (using `requests_cache`) for one hour to improve performance on repeated queries.
 
 ## Installation
 
 ### Prerequisites
-
 - Python 3.7 or higher
 
 ### Setup
 
 1. **Clone the repository:**
-
     ```bash
     git clone https://github.com/yourusername/investment-analysis-tool.git
     cd investment-analysis-tool
     ```
 
 2. **Install the required dependencies:**
-
     ```bash
     pip install -r requirements.txt
     ```
 
-3. **Run the application:**
+3. **Configure API Keys:**
+    - Update the earnings API key in the `app.py` file (replace `'your_api_key_here'` with your valid API key).
 
+4. **Run the application:**
     ```bash
-    python main.py
+    python app.py
     ```
 
 ## Usage
 
-1. **Load Stock Data**
-   - Enter a valid stock symbol (e.g., `AAPL`).
-   - Choose a date range using the provided date pickers.
-   - Click the **Load Data** button to fetch historical price data from Yahoo Finance.
+1. **Load Stock Data:**
+   - Enter a valid stock symbol (e.g. `AAPL`).
+   - Choose a date range using the modern date picker (default is 2 years ago until today).
+   - Click **Load Stock Data** to fetch historical data. The technical analysis chart will display available indicators, with missing values shown as "N/A".
 
-2. **Technical Analysis & DCA Calculator**
-   - View calculated technical indicators and a recommendation based on the latest available data.
-   - Use the integrated DCA calculator by entering your initial and periodic investments, investment frequency, and expected annual return.
-   - Interactive charts update dynamically based on the loaded data and calculations.
+2. **DCA Calculator:**
+   - With the stock data loaded, default DCA values are pre-populated.
+   - Click **Calculate DCA** to simulate an investment strategy. The DCA chart aggregates the simulation by year, and the results are displayed without decimals and with thousand separators.
 
-3. **Fundamentals**
-   - Review key financial ratios and fundamental metrics provided by Yahoo Finance.
-
-4. **Options Chain**
-   - Examine current options chain data (both calls and puts) for the selected stock.
-
-5. **Dividends**
-   - View historical dividend payouts in a tabulated format.
-
-6. **Earnings**
-   - Check upcoming calendar events related to earnings.
-   - See historical annual and quarterly net income (extracted from income statements).
-
-7. **Financials**
-   - Toggle between the Balance Sheet, Income Statement, and Cash Flow Statement to review detailed financial data.
+3. **Additional Modules:**
+   - **Fundamentals:** View key ratios and financial metrics.
+   - **Earnings:** See upcoming earnings events (requires valid API key).
+   - **Options Chain:** Examine current options chain data.
+   - **News:** Read the latest news items related to the stock.
 
 ## Project Structure
 
 ```plaintext
 investment-analysis-tool/
-├── main.py                     # Entry point for the application
-├── README.md                   # Project documentation
+├── app.py                      # Main Flask application entry point
+├── README.MD                   # Project documentation
 ├── requirements.txt            # Required Python packages
-├── styles.qss                  # QSS file for custom styling (optional)
+├── static/
+│   ├── styles.css              # Custom CSS with modern styling
+│   ├── manifest.json           # PWA manifest
+│   └── sw.js                   # Service worker for caching assets
 ├── models/
 │   ├── __init__.py             # Module initialization file
+│   ├── stock_analysis.py       # Technical indicator calculations
 │   ├── dca_calculations.py     # Dollar-Cost Averaging simulation functions
-│   ├── stock_analysis.py       # Technical indicator calculations and recommendations
-│   ├── fundamentals.py         # Fundamental data extraction from Yahoo Finance
-│   └── options.py              # Options chain data extraction
-├── services/
-│   ├── __init__.py             # Module initialization file
-│   └── data_loader.py          # Fetches historical stock data with caching
-└── ui/
+│   ├── fundamentals.py         # Fundamental data extraction
+│   ├── earnings.py             # Earnings calendar integration
+│   ├── options.py              # Options chain data extraction
+│   └── news.py                 # News retrieval and formatting
+└── services/
     ├── __init__.py             # Module initialization file
-    ├── components.py           # Reusable UI components (e.g., collapsible sections)
-    └── main_window.py          # Main application window (tabbed interface)
-```
+    └── data_loader.py          # Data fetching and caching using yfinance
 
 ## Future Enhancements
 
-- Integration of additional investor tools (e.g., earnings forecasts, dividend yield analysis, portfolio performance tracking).
-- Improved error handling and logging for a production environment.
-- Enhanced UI/UX design with responsive layout adjustments for mobile devices.
-- Options to export charts and data for further analysis.
-
-## Special Thanks
-
-- **Yahoo Finance** – for providing reliable financial data.
-- **yfinance** – for its robust API wrapper that simplifies data fetching.
-- **Plotly** – for interactive charting and data visualization.
-- **PyQt5** – for a powerful and flexible GUI framework.
-- Thanks to the open-source community for their continuous contributions to these libraries.
+- **Enhanced Recommendation Engine:**  
+  Develop a more sophisticated algorithm to provide buy/hold/sell recommendations based on the technical indicators.
+- **Export Options:**  
+  Allow users to export charts and data for further analysis.
+- **Portfolio Tracking:**  
+  Integrate additional tools for portfolio performance analysis and risk assessment.
 
 ## Contributing
 
-Contributions are welcome! Feel free to fork the repository and submit pull requests for additional features, bug fixes, or improvements.
+Contributions are welcome! Please fork the repository and submit pull requests for bug fixes or additional features. When contributing, follow these guidelines:
+- Ensure your code is well-documented.
+- Include tests for any new functionality.
+- Follow the existing coding style and structure.
 
 ## License
 
