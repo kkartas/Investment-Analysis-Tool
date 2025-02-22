@@ -109,6 +109,7 @@ investment-analysis-tool/
 └── services/
     ├── __init__.py             # Module initialization file
     └── data_loader.py          # Data fetching and caching using yfinance
+```
 
 ## Future Enhancements
 
