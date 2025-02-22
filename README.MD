@@ -93,18 +93,18 @@ investment-analysis-tool/
 ├── main.py                     # Entry point for the application
 ├── README.md                   # Project documentation
 ├── requirements.txt            # Required Python packages
+├── styles.qss                  # QSS file for custom styling (optional)
 ├── models/
-│   ├── __init__.py
+│   ├── __init__.py             # Module initialization file
 │   ├── dca_calculations.py     # Dollar-Cost Averaging simulation functions
 │   ├── stock_analysis.py       # Technical indicator calculations and recommendations
 │   ├── fundamentals.py         # Fundamental data extraction from Yahoo Finance
-│   ├── options.py              # Options chain data extraction
-│   └── ...                     # Other modules as needed
+│   └── options.py              # Options chain data extraction
 ├── services/
-│   ├── __init__.py
+│   ├── __init__.py             # Module initialization file
 │   └── data_loader.py          # Fetches historical stock data with caching
 └── ui/
-    ├── __init__.py
+    ├── __init__.py             # Module initialization file
     ├── components.py           # Reusable UI components (e.g., collapsible sections)
     └── main_window.py          # Main application window (tabbed interface)
 ```
@@ -115,6 +115,14 @@ investment-analysis-tool/
 - Improved error handling and logging for a production environment.
 - Enhanced UI/UX design with responsive layout adjustments for mobile devices.
 - Options to export charts and data for further analysis.
+
+## Special Thanks
+
+- **Yahoo Finance** – for providing reliable financial data.
+- **yfinance** – for its robust API wrapper that simplifies data fetching.
+- **Plotly** – for interactive charting and data visualization.
+- **PyQt5** – for a powerful and flexible GUI framework.
+- Thanks to the open-source community for their continuous contributions to these libraries.
 
 ## Contributing
 
