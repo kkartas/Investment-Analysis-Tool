@@ -1,3 +1,4 @@
+# models/earnings.py
 import requests
 
 def fetch_earnings(symbol: str, api_key: str):
@@ -11,7 +12,8 @@ def fetch_earnings(symbol: str, api_key: str):
         if response.status_code != 200:
             print("Earnings API error:", response.status_code)
             return []
-        return response.json()
+        data = response.json()
+        return data if data else []
     except Exception as e:
         print("Exception in fetch_earnings:", e)
         return []

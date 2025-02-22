@@ -3,9 +3,7 @@ import datetime
 
 def get_news(ticker):
     """
-    Retrieves news from the given yfinance Ticker object.
-    Returns a list of up to 10 news items with keys: 'title', 'publisher', 'link', and 'publishedDate'.
-    Falls back to alternate keys if the expected ones are missing.
+    Retrieves up to 10 news items from the yfinance Ticker object.
     """
     news = ticker.news
     if not news:
@@ -13,14 +11,12 @@ def get_news(ticker):
     
     enhanced_news = []
     for item in news:
-        # Use safe get() with fallbacks
-        title = item.get("title") or item.get("summary") or "No Title"
+        title = item.get("title") or "No Title"
         publisher = item.get("publisher") or item.get("source") or "Unknown"
-        link = item.get("link", "#")
+        link = item.get("link") or "#"
         published = item.get("providerPublishTime")
-        # If published is a Unix timestamp, convert it to a readable date
         if isinstance(published, int):
-            published = datetime.datetime.fromtimestamp(published).strftime("%Y-%m-%d %H:%M")
+            published = datetime.datetime.fromtimestamp(published).strftime("%d/%m/%Y %H:%M")
         elif not published:
             published = "N/A"
         enhanced_news.append({

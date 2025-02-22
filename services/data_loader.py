@@ -2,8 +2,9 @@ import yfinance as yf
 import requests_cache
 from requests.exceptions import RequestException
 
-# Configure caching to avoid redundant requests
-session = requests_cache.CachedSession('yfinance.cache')
+# Install a cache that expires after 1 hour (3600 seconds)
+requests_cache.install_cache('yfinance_cache', expire_after=3600)
+session = requests_cache.CachedSession('yfinance_cache')
 session.headers['User-Agent'] = 'investment-tool/1.0'
 
 def fetch_stock_data(symbol: str):

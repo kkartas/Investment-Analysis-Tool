@@ -2,262 +2,278 @@
 
 {% block content %}
 <form method="POST">
-<div class="container">
-  <!-- Nav Tabs -->
-  <ul class="nav nav-tabs" id="investmentTab" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="stock-data-tab" data-bs-toggle="tab" data-bs-target="#stock-data" type="button" role="tab" aria-controls="stock-data" aria-selected="true">Stock Data</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="technical-tab" data-bs-toggle="tab" data-bs-target="#technical" type="button" role="tab" aria-controls="technical" aria-selected="false">Technical Analysis</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="dca-tab" data-bs-toggle="tab" data-bs-target="#dca" type="button" role="tab" aria-controls="dca" aria-selected="false">DCA Calculator</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="fundamentals-tab" data-bs-toggle="tab" data-bs-target="#fundamentals" type="button" role="tab" aria-controls="fundamentals" aria-selected="false">Fundamentals</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="earnings-tab" data-bs-toggle="tab" data-bs-target="#earnings" type="button" role="tab" aria-controls="earnings" aria-selected="false">Earnings</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="options-tab" data-bs-toggle="tab" data-bs-target="#options" type="button" role="tab" aria-controls="options" aria-selected="false">Options Chain</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="news-tab" data-bs-toggle="tab" data-bs-target="#news" type="button" role="tab" aria-controls="news" aria-selected="false">News</button>
-    </li>
-  </ul>
+  <div class="container">
+    <!-- Nav Tabs -->
+    <ul class="nav nav-tabs nav-fill modern-tabs" id="investmentTab" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link {% if active_tab == 'stock-data' %}active{% endif %}" id="stock-data-tab" data-bs-toggle="tab" data-bs-target="#stock-data" type="button" role="tab" aria-controls="stock-data" aria-selected="true">
+          Stock Data
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link {% if active_tab == 'dca' %}active{% endif %}" id="dca-tab" data-bs-toggle="tab" data-bs-target="#dca" type="button" role="tab" aria-controls="dca" aria-selected="false">
+          DCA Calculator
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="fundamentals-tab" data-bs-toggle="tab" data-bs-target="#fundamentals" type="button" role="tab" aria-controls="fundamentals" aria-selected="false">
+          Fundamentals
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="earnings-tab" data-bs-toggle="tab" data-bs-target="#earnings" type="button" role="tab" aria-controls="earnings" aria-selected="false">
+          Earnings
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="options-tab" data-bs-toggle="tab" data-bs-target="#options" type="button" role="tab" aria-controls="options" aria-selected="false">
+          Options Chain
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="news-tab" data-bs-toggle="tab" data-bs-target="#news" type="button" role="tab" aria-controls="news" aria-selected="false">
+          News
+        </button>
+      </li>
+    </ul>
 
-  <!-- Tab Panes -->
-  <div class="tab-content" id="investmentTabContent">
-    <!-- Stock Data Tab -->
-    <div class="tab-pane fade show active" id="stock-data" role="tabpanel" aria-labelledby="stock-data-tab">
-      <div class="row mt-3">
-        <div class="col-md-12">
-          <h2>Load Stock Data</h2>
-          {% if error %}
-            <div class="alert alert-danger">{{ error }}</div>
-          {% endif %}
-          <div class="row">
-            <div class="col-md-4 mb-3">
-              <label for="symbol" class="form-label">Stock Symbol</label>
-              <input type="text" class="form-control" id="symbol" name="symbol" placeholder="e.g., AAPL" required value="{{ request.form.symbol or '' }}">
+    <!-- Tab Panes -->
+    <div class="tab-content modern-tabs-content" id="investmentTabContent">
+      <!-- Stock Data Tab (includes Technical Analysis) -->
+      <div class="tab-pane fade {% if active_tab == 'stock-data' %}show active{% endif %}" id="stock-data" role="tabpanel" aria-labelledby="stock-data-tab">
+        <div class="card modern-card my-4">
+          <div class="card-body">
+            <h2 class="card-title">Load Stock Data</h2>
+            {% if error %}
+              <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label for="symbol" class="form-label">Stock Symbol</label>
+                <input type="text" class="form-control" id="symbol" name="symbol" placeholder="e.g., AAPL" required value="{{ request.form.symbol or '' }}">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="text" class="form-control" id="start_date" name="start_date" placeholder="DD/MM/YYYY" required value="{{ request.form.start_date or default_start_date }}">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="text" class="form-control" id="end_date" name="end_date" placeholder="DD/MM/YYYY" required value="{{ request.form.end_date or default_end_date }}">
+              </div>
             </div>
-            <div class="col-md-4 mb-3">
-              <label for="start_date" class="form-label">Start Date</label>
-              <input type="text" class="form-control" id="start_date" name="start_date" placeholder="DD/MM/YYYY" required value="{{ request.form.start_date or default_start_date }}">
-            </div>
-            <div class="col-md-4 mb-3">
-              <label for="end_date" class="form-label">End Date</label>
-              <input type="text" class="form-control" id="end_date" name="end_date" placeholder="DD/MM/YYYY" required value="{{ request.form.end_date or default_end_date }}">
-            </div>
+            <!-- Submit button for loading stock data -->
+            <button type="submit" name="action" value="load_stock" class="btn btn-primary w-100">Load Stock Data</button>
           </div>
-          <button type="submit" class="btn btn-primary">Load Stock Data</button>
         </div>
-      </div>
-    </div>
-    
-    <!-- Technical Analysis Tab -->
-    <div class="tab-pane fade" id="technical" role="tabpanel" aria-labelledby="technical-tab">
-      <div class="mt-3">
-        <h2>Technical Analysis</h2>
         {% if result %}
-          <ul class="list-group">
-            <li class="list-group-item"><strong>Latest Close:</strong> {{ result.latest_close }}</li>
-            <li class="list-group-item"><strong>50-day SMA:</strong> {{ result.SMA_50 }}</li>
-            <li class="list-group-item"><strong>200-day SMA:</strong> {{ result.SMA_200 }}</li>
-            <li class="list-group-item"><strong>RSI:</strong> {{ result.RSI }}</li>
-            <li class="list-group-item"><strong>MACD:</strong> {{ result.MACD }}</li>
-            <li class="list-group-item"><strong>Signal Line:</strong> {{ result.Signal_Line }}</li>
-            <li class="list-group-item"><strong>Recommendation:</strong> {{ result.recommendation }}</li>
-          </ul>
-          <div id="techChart" class="mt-3"></div>
-        {% else %}
-          <p>No technical analysis data available. Please load stock data.</p>
+          <div class="card modern-card my-4">
+            <div class="card-body">
+              <h3 class="card-title">Technical Indicators Chart</h3>
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item"><strong>Latest Close:</strong> {{ result.latest_close|default("N/A") }}</li>
+                <li class="list-group-item"><strong>50-day SMA:</strong> {{ result.SMA_50|default("N/A") }}</li>
+                <li class="list-group-item"><strong>200-day SMA:</strong> {{ result.SMA_200|default("N/A") }}</li>
+                <li class="list-group-item"><strong>RSI:</strong> {{ result.RSI|default("N/A") }}</li>
+                <li class="list-group-item"><strong>MACD:</strong> {{ result.MACD|default("N/A") }}</li>
+                <li class="list-group-item"><strong>Signal Line:</strong> {{ result.Signal_Line|default("N/A") }}</li>
+                <li class="list-group-item"><strong>Recommendation:</strong> {{ result.recommendation|default("N/A") }}</li>
+              </ul>
+              <!-- Chart container for Chart.js -->
+              <canvas id="techChart" class="mt-4"></canvas>
+            </div>
+          </div>
         {% endif %}
       </div>
-    </div>
-    
-    <!-- DCA Calculator Tab -->
-    <div class="tab-pane fade" id="dca" role="tabpanel" aria-labelledby="dca-tab">
-      <div class="mt-3">
-        <h2>DCA Calculator</h2>
-        <!-- DCA input fields -->
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            <label for="initial_investment" class="form-label">Initial Investment ($)</label>
-            <input type="text" class="form-control" id="initial_investment" name="initial_investment" placeholder="e.g., 1000" value="{{ request.form.initial_investment or '' }}">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label for="periodic_investment" class="form-label">Periodic Investment ($)</label>
-            <input type="text" class="form-control" id="periodic_investment" name="periodic_investment" placeholder="e.g., 200" value="{{ request.form.periodic_investment or '' }}">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label for="frequency" class="form-label">Investment Frequency</label>
-            <select class="form-select" id="frequency" name="frequency">
-              <option value="weekly" {% if request.form.frequency=='weekly' %}selected{% endif %}>Weekly</option>
-              <option value="monthly" {% if request.form.frequency=='monthly' or not request.form.frequency %}selected{% endif %}>Monthly</option>
-              <option value="quarterly" {% if request.form.frequency=='quarterly' %}selected{% endif %}>Quarterly</option>
-              <option value="yearly" {% if request.form.frequency=='yearly' %}selected{% endif %}>Yearly</option>
-            </select>
+      
+      <!-- DCA Calculator Tab -->
+      <div class="tab-pane fade {% if active_tab == 'dca' %}show active{% endif %}" id="dca" role="tabpanel" aria-labelledby="dca-tab">
+        <div class="card modern-card my-4">
+          <div class="card-body">
+            <h2 class="card-title">DCA Calculator</h2>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label for="initial_investment" class="form-label">Initial Investment ($)</label>
+                <input type="text" class="form-control" id="initial_investment" name="initial_investment" placeholder="e.g., 1000" value="{{ request.form.initial_investment or '1000' }}">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="periodic_investment" class="form-label">Periodic Investment ($)</label>
+                <input type="text" class="form-control" id="periodic_investment" name="periodic_investment" placeholder="e.g., 200" value="{{ request.form.periodic_investment or '200' }}">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="frequency" class="form-label">Investment Frequency</label>
+                <select class="form-select" id="frequency" name="frequency">
+                  <option value="weekly" {% if request.form.frequency=='weekly' %}selected{% endif %}>Weekly</option>
+                  <option value="monthly" {% if request.form.frequency=='monthly' or not request.form.frequency %}selected{% endif %}>Monthly</option>
+                  <option value="quarterly" {% if request.form.frequency=='quarterly' %}selected{% endif %}>Quarterly</option>
+                  <option value="yearly" {% if request.form.frequency=='yearly' %}selected{% endif %}>Yearly</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label for="duration" class="form-label">Duration (Years)</label>
+                <input type="number" class="form-control" id="duration" name="duration" value="{{ request.form.duration or '5' }}" min="1" max="50">
+              </div>
+              <div class="col-md-8 mb-3 align-self-end">
+                <!-- Submit button for calculating DCA -->
+                <button type="submit" name="action" value="calculate_dca" class="btn btn-primary w-100">Calculate DCA</button>
+              </div>
+            </div>
+            {% if dca_result %}
+              <div class="mt-4">
+                <h3 class="card-title">DCA Results</h3>
+                <ul class="list-group list-group-flush">
+                  <li class="list-group-item"><strong>Total Invested:</strong> {{ dca_result.total_invested|default("N/A") }}</li>
+                  <li class="list-group-item"><strong>Future Value:</strong> {{ dca_result.future_value|default("N/A") }}</li>
+                  <li class="list-group-item"><strong>Total Profit:</strong> {{ dca_result.total_profit|default("N/A") }}</li>
+                  <li class="list-group-item"><strong>Expected Annual Return:</strong> {{ dca_result.expected_return|default("N/A") }}%</li>
+                </ul>
+                <canvas id="dcaChart" class="mt-4"></canvas>
+              </div>
+            {% endif %}
           </div>
         </div>
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            <label for="duration" class="form-label">Duration (Years)</label>
-            <input type="number" class="form-control" id="duration" name="duration" value="{{ request.form.duration or 5 }}" min="1" max="50">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label for="expected_return" class="form-label">Expected Annual Return (%)</label>
-            <input type="text" class="form-control" id="expected_return" name="expected_return" placeholder="e.g., 7" value="{{ request.form.expected_return or '' }}">
-          </div>
-          <div class="col-md-4 mb-3 align-self-end">
-            <button type="submit" class="btn btn-primary w-100">Calculate DCA</button>
+      </div>
+      
+      <!-- Fundamentals Tab -->
+      <div class="tab-pane fade" id="fundamentals" role="tabpanel" aria-labelledby="fundamentals-tab">
+        <div class="card modern-card my-4">
+          <div class="card-body">
+            <h2 class="card-title">Fundamental Data</h2>
+            {% if fundamentals %}
+              <ul class="list-group list-group-flush">
+                {% for key, value in fundamentals.items() %}
+                  <li class="list-group-item"><strong>{{ key }}:</strong> {{ value|default("N/A") }}</li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>No fundamental data available. Please load stock data.</p>
+            {% endif %}
           </div>
         </div>
-        {% if dca_result %}
-          <h3>DCA Results</h3>
-          <ul class="list-group">
-            <li class="list-group-item"><strong>Total Invested:</strong> {{ dca_result.total_invested }}</li>
-            <li class="list-group-item"><strong>Future Value:</strong> {{ dca_result.future_value }}</li>
-            <li class="list-group-item"><strong>Total Profit:</strong> {{ dca_result.total_profit }}</li>
-          </ul>
-          <div id="dcaChart" class="mt-3"></div>
-        {% endif %}
       </div>
-    </div>
-    
-    <!-- Fundamentals Tab -->
-    <div class="tab-pane fade" id="fundamentals" role="tabpanel" aria-labelledby="fundamentals-tab">
-      <div class="mt-3">
-        <h2>Fundamental Data</h2>
-        {% if fundamentals %}
-          <ul class="list-group">
-            {% for key, value in fundamentals.items() %}
-              <li class="list-group-item"><strong>{{ key }}:</strong> {{ value }}</li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p>No fundamental data available. Please load stock data.</p>
-        {% endif %}
-      </div>
-    </div>
-    
-    <!-- Earnings Tab -->
-    <div class="tab-pane fade" id="earnings" role="tabpanel" aria-labelledby="earnings-tab">
-      <div class="mt-3">
-        <h2>Earnings Calendar</h2>
-        {% if earnings %}
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>EPS Estimate</th>
-                <th>Reported EPS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for event in earnings %}
-                <tr>
-                  <td>{{ event.date }}</td>
-                  <td>{{ event.epsEstimate }}</td>
-                  <td>{{ event.epsActual }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% else %}
-          <p>No earnings data available. Please load stock data.</p>
-        {% endif %}
-      </div>
-    </div>
-    
-    <!-- Options Chain Tab -->
-    <div class="tab-pane fade" id="options" role="tabpanel" aria-labelledby="options-tab">
-      <div class="mt-3">
-        <h2>Options Chain</h2>
-        {% if options_chain %}
-          <h4>Calls</h4>
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>Contract Name</th>
-                <th>Strike</th>
-                <th>Last Price</th>
-                <th>Bid</th>
-                <th>Ask</th>
-                <th>Volume</th>
-                <th>Open Interest</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for call in options_chain.calls %}
-                <tr>
-                  <td>{{ call.contractSymbol }}</td>
-                  <td>{{ call.strike }}</td>
-                  <td>{{ call.lastPrice }}</td>
-                  <td>{{ call.bid }}</td>
-                  <td>{{ call.ask }}</td>
-                  <td>{{ call.volume }}</td>
-                  <td>{{ call.openInterest }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          <h4>Puts</h4>
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>Contract Name</th>
-                <th>Strike</th>
-                <th>Last Price</th>
-                <th>Bid</th>
-                <th>Ask</th>
-                <th>Volume</th>
-                <th>Open Interest</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for put in options_chain.puts %}
-                <tr>
-                  <td>{{ put.contractSymbol }}</td>
-                  <td>{{ put.strike }}</td>
-                  <td>{{ put.lastPrice }}</td>
-                  <td>{{ put.bid }}</td>
-                  <td>{{ put.ask }}</td>
-                  <td>{{ put.volume }}</td>
-                  <td>{{ put.openInterest }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% else %}
-          <p>No options chain data available. Please load stock data.</p>
-        {% endif %}
-      </div>
-    </div>
-    
-    <!-- News Tab -->
-    <div class="tab-pane fade" id="news" role="tabpanel" aria-labelledby="news-tab">
-      <div class="mt-3">
-        <h2>Latest News</h2>
-        {% if news %}
-          <div class="list-group">
-            {% for item in news %}
-              <a href="{{ item.link }}" target="_blank" class="list-group-item list-group-item-action">
-                <h5 class="mb-1">{{ item.title }}</h5>
-                <small>{{ item.publishedDate }} - {{ item.publisher }}</small>
-              </a>
-            {% endfor %}
+      
+      <!-- Earnings Tab -->
+      <div class="tab-pane fade" id="earnings" role="tabpanel" aria-labelledby="earnings-tab">
+        <div class="card modern-card my-4">
+          <div class="card-body">
+            <h2 class="card-title">Earnings Calendar</h2>
+            {% if earnings %}
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>EPS Estimate</th>
+                    <th>Reported EPS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for event in earnings %}
+                    <tr>
+                      <td>{{ event.date|default("N/A") }}</td>
+                      <td>{{ event.epsEstimate|default("N/A") }}</td>
+                      <td>{{ event.epsActual|default("N/A") }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <p>No earnings data available. Please load stock data.</p>
+            {% endif %}
           </div>
-        {% else %}
-          <p>No news data available. Please load stock data.</p>
-        {% endif %}
+        </div>
       </div>
+      
+      <!-- Options Chain Tab -->
+      <div class="tab-pane fade" id="options" role="tabpanel" aria-labelledby="options-tab">
+        <div class="card modern-card my-4">
+          <div class="card-body">
+            <h2 class="card-title">Options Chain</h2>
+            {% if options_chain %}
+              <h4 class="mt-3">Calls</h4>
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Contract Name</th>
+                    <th>Strike</th>
+                    <th>Last Price</th>
+                    <th>Bid</th>
+                    <th>Ask</th>
+                    <th>Volume</th>
+                    <th>Open Interest</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for call in options_chain.calls %}
+                    <tr>
+                      <td>{{ call.contractSymbol|default("N/A") }}</td>
+                      <td>{{ call.strike|default("N/A") }}</td>
+                      <td>{{ call.lastPrice|default("N/A") }}</td>
+                      <td>{{ call.bid|default("N/A") }}</td>
+                      <td>{{ call.ask|default("N/A") }}</td>
+                      <td>{{ call.volume|default("N/A") }}</td>
+                      <td>{{ call.openInterest|default("N/A") }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <h4 class="mt-3">Puts</h4>
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Contract Name</th>
+                    <th>Strike</th>
+                    <th>Last Price</th>
+                    <th>Bid</th>
+                    <th>Ask</th>
+                    <th>Volume</th>
+                    <th>Open Interest</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for put in options_chain.puts %}
+                    <tr>
+                      <td>{{ put.contractSymbol|default("N/A") }}</td>
+                      <td>{{ put.strike|default("N/A") }}</td>
+                      <td>{{ put.lastPrice|default("N/A") }}</td>
+                      <td>{{ put.bid|default("N/A") }}</td>
+                      <td>{{ put.ask|default("N/A") }}</td>
+                      <td>{{ put.volume|default("N/A") }}</td>
+                      <td>{{ put.openInterest|default("N/A") }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% else %}
+              <p>No options chain data available. Please load stock data.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- News Tab -->
+      <div class="tab-pane fade" id="news" role="tabpanel" aria-labelledby="news-tab">
+        <div class="card modern-card my-4">
+          <div class="card-body">
+            <h2 class="card-title">Latest News</h2>
+            {% if news %}
+              <div class="list-group">
+                {% for item in news %}
+                  <a href="{{ item.link }}" target="_blank" class="list-group-item list-group-item-action">
+                    <h5 class="mb-1">{{ item.title|default("No Title") }}</h5>
+                    <small>{{ item.publishedDate|default("N/A") }} - {{ item.publisher|default("Unknown") }}</small>
+                  </a>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p>No news data available. Please load stock data.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
     </div>
-    
   </div>
-</div>
 </form>
 {% endblock %}
 
@@ -276,51 +292,163 @@
 
 {% if stock_chart_data.dates and (stock_chart_data.dates|length) > 0 %}
 <script>
-  var stockChartData = {{ stock_chart_data | tojson }};
-  var trace = {
-      x: stockChartData.dates,
-      y: stockChartData.close,
-      type: 'scatter',
-      mode: 'lines',
-      line: {color: '#007bff'}
-  };
-  var layout = {
-      title: 'Stock Price Over Time',
-      xaxis: {title: 'Date'},
-      yaxis: {title: 'Close Price ($)'},
-      margin: { t: 50 }
-  };
-  Plotly.newPlot('techChart', [trace], layout, {responsive: true});
+  var ctxTech = document.getElementById('techChart').getContext('2d');
+  var techChart = new Chart(ctxTech, {
+    type: 'line',
+    data: {
+      labels: {{ stock_chart_data.dates | tojson }},
+      datasets: [
+        {
+          label: 'Close Price',
+          data: {{ stock_chart_data.close | tojson }},
+          borderColor: 'rgba(0,82,204,1)',
+          backgroundColor: 'rgba(0,82,204,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y'
+        },
+        {
+          label: '50-day SMA',
+          data: {{ stock_chart_data.sma50 | tojson }},
+          borderColor: 'rgba(255,193,7,1)',
+          backgroundColor: 'rgba(255,193,7,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y'
+        },
+        {
+          label: '200-day SMA',
+          data: {{ stock_chart_data.sma200 | tojson }},
+          borderColor: 'rgba(40,167,69,1)',
+          backgroundColor: 'rgba(40,167,69,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y'
+        },
+        {
+          label: 'MACD',
+          data: {{ stock_chart_data.macd | tojson }},
+          borderColor: 'rgba(220,53,69,1)',
+          backgroundColor: 'rgba(220,53,69,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'RSI',
+          data: {{ stock_chart_data.rsi | tojson }},
+          borderColor: 'rgba(153,102,255,1)',
+          backgroundColor: 'rgba(153,102,255,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true, position: 'top' },
+        title: {
+          display: true,
+          text: 'Technical Indicators Chart',
+          font: { size: 18, weight: '600' }
+        },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Date', font: { weight: '500' } },
+          grid: { display: false }
+        },
+        y: {
+          title: { display: true, text: 'Price ($)', font: { weight: '500' } },
+          grid: { color: '#e0e0e0' }
+        },
+        y1: {
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { callback: function(value) { return value; } }
+        }
+      }
+    }
+  });
 </script>
 {% endif %}
 
 {% if dca_chart_data.dates and (dca_chart_data.dates|length) > 0 %}
 <script>
-  var dcaChartData = {{ dca_chart_data | tojson }};
-  var trace1 = {
-      x: dcaChartData.dates,
-      y: dcaChartData.invested,
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Total Invested',
-      line: {color: '#28a745'}
-  };
-  var trace2 = {
-      x: dcaChartData.dates,
-      y: dcaChartData.value,
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Portfolio Value',
-      line: {color: '#dc3545'}
-  };
-  var layoutDCA = {
-      title: 'DCA Investment Simulation',
-      xaxis: {title: 'Date'},
-      yaxis: {title: 'Amount ($)'},
-      margin: { t: 50 }
-  };
-  Plotly.newPlot('dcaChart', [trace1, trace2], layoutDCA, {responsive: true});
+  var ctxDCA = document.getElementById('dcaChart').getContext('2d');
+  var invested = {{ dca_chart_data.invested | tojson }};
+  var valueData = {{ dca_chart_data.value | tojson }};
+  var allValues = invested.concat(valueData);
+  var minY = Math.min(...allValues) * 0.95;
+  var maxY = Math.max(...allValues) * 1.05;
+  var dcaChart = new Chart(ctxDCA, {
+    type: 'line',
+    data: {
+      labels: {{ dca_chart_data.dates | tojson }},
+      datasets: [
+        {
+          label: 'Total Invested',
+          data: invested,
+          borderColor: 'rgba(40,167,69,1)',
+          backgroundColor: 'rgba(40,167,69,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3
+        },
+        {
+          label: 'Portfolio Value',
+          data: valueData,
+          borderColor: 'rgba(220,53,69,1)',
+          backgroundColor: 'rgba(220,53,69,0.1)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true, position: 'top' },
+        title: {
+          display: true,
+          text: 'DCA Investment Simulation',
+          font: { size: 18, weight: '600' }
+        },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Date', font: { weight: '500' } },
+          grid: { display: false }
+        },
+        y: {
+          title: { display: true, text: 'Amount ($)', font: { weight: '500' } },
+          grid: { color: '#e0e0e0' },
+          min: minY,
+          max: maxY
+        }
+      }
+    }
+  });
 </script>
 {% endif %}
-{% endblock %}
 
+<script>
+  // Activate the appropriate tab based on active_tab variable
+  var activeTab = "{{ active_tab }}";
+  if (activeTab === "dca") {
+      var dcaTabTrigger = document.querySelector('#dca-tab');
+      var tabInstance = new bootstrap.Tab(dcaTabTrigger);
+      tabInstance.show();
+  }
+</script>
+{% endblock %}

@@ -1,60 +1,81 @@
+/* Use the Inter font throughout */
 body {
-    background-color: #f0f2f5;
+    font-family: 'Inter', sans-serif;
+    background-color: #f7f9fc;
+    color: #333;
     padding-top: 20px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-.navbar {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.nav-tabs .nav-link {
+  }
+  
+  /* Navbar */
+  .navbar {
+    background: linear-gradient(90deg, #0052cc, #0066ff);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Modern nav-tabs */
+  .modern-tabs .nav-link {
     border: none;
-    border-bottom: 3px solid transparent;
-    transition: border-color 0.3s;
+    background-color: transparent;
     color: #555;
-}
-
-.nav-tabs .nav-link.active {
-    border-color: #007bff;
-    color: #007bff;
-}
-
-.form-control, .form-select {
-    border-radius: 0.5rem;
-    box-shadow: none;
-    border: 1px solid #ced4da;
-}
-
-.btn-primary {
-    border-radius: 0.5rem;
-    background-color: #007bff;
-    border-color: #007bff;
-}
-
-.btn-primary:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
-}
-
-.card {
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    transition: all 0.3s ease;
+  }
+  .modern-tabs .nav-link.active {
+    color: #0052cc;
+    border-bottom: 3px solid #0052cc;
+  }
+  .modern-tabs .nav-link:hover {
+    color: #0052cc;
+  }
+  
+  /* Card styling */
+  .modern-card {
     border: none;
     border-radius: 1rem;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    margin-bottom: 1rem;
-}
-
-.list-group-item {
-    border: none;
-    border-bottom: 1px solid #e9ecef;
-}
-
-.table {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     background-color: #fff;
+  }
+  
+  /* Card titles */
+  .card-title {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #0052cc;
+    font-weight: 600;
+  }
+  
+  /* Form controls */
+  .form-control, .form-select {
     border-radius: 0.5rem;
-}
-
-footer {
-    margin-top: 40px;
-    color: #777;
-}
+    border: 1px solid #d1d9e6;
+    box-shadow: none;
+  }
+  
+  /* Buttons */
+  .btn-primary {
+    border-radius: 0.5rem;
+    background-color: #0052cc;
+    border-color: #0052cc;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+  }
+  .btn-primary:hover {
+    background-color: #003d99;
+    border-color: #003d99;
+  }
+  
+  /* Table styling */
+  .table {
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #f3f7fa;
+  }
+  
+  /* Footer */
+  footer {
+    font-size: 0.875rem;
+  }
+  
