@@ -1,2 +1,3 @@
 /__pycache__
 yfinance.cache
+services/__pycache__/data_loader.cpython-311.pyc

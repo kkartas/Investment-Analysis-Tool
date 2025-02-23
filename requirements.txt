@@ -1,6 +1,6 @@
 Flask==2.2.5
 gunicorn==20.1.0
-yfinance==0.2.18
+yfinance==0.2.54
 requests-cache==0.9.8
 pandas>=2.1.2
 numpy>=1.26.0
