@@ -1,9 +1,12 @@
 import yfinance as yf
 import requests_cache
 from requests.exceptions import RequestException
+import os
+
 
 # Install a cache that expires after 1 hour (3600 seconds)
-requests_cache.install_cache('yfinance_cache', expire_after=3600)
+cache_dir = os.path.join(os.environ.get('HOME', '/tmp'), 'yfinance_cache')
+requests_cache.install_cache(cache_dir, expire_after=3600)
 session = requests_cache.CachedSession('yfinance_cache')
 session.headers['User-Agent'] = 'investment-tool/1.0'
 
