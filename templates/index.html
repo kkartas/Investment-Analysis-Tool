@@ -2,9 +2,9 @@
 
 {% block content %}
 <form method="POST">
-  <div class="container">
+  <div class="container-fluid">
     <!-- Nav Tabs -->
-    <ul class="nav nav-tabs nav-fill modern-tabs" id="investmentTab" role="tablist">
+    <ul class="nav nav-tabs nav-fill modern-tabs flex-wrap" id="investmentTab" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link {% if active_tab == 'stock-data' %}active{% endif %}" id="stock-data-tab" data-bs-toggle="tab" data-bs-target="#stock-data" type="button" role="tab" aria-controls="stock-data" aria-selected="true">
           Stock Data
@@ -39,7 +39,7 @@
 
     <!-- Tab Panes -->
     <div class="tab-content modern-tabs-content" id="investmentTabContent">
-      <!-- Stock Data Tab (includes Technical Analysis) -->
+      <!-- Stock Data Tab -->
       <div class="tab-pane fade {% if active_tab == 'stock-data' %}show active{% endif %}" id="stock-data" role="tabpanel" aria-labelledby="stock-data-tab">
         <div class="card modern-card my-4">
           <div class="card-body">
@@ -47,28 +47,28 @@
             {% if error %}
               <div class="alert alert-danger">{{ error }}</div>
             {% endif %}
-            <div class="row">
-              <div class="col-md-4 mb-3">
+            <div class="row g-3">
+              <div class="col-md-4">
                 <label for="symbol" class="form-label">Stock Symbol</label>
                 <input type="text" class="form-control" id="symbol" name="symbol" placeholder="e.g., AAPL" required value="{{ request.form.symbol or '' }}">
               </div>
-              <div class="col-md-4 mb-3">
+              <div class="col-md-4">
                 <label for="start_date" class="form-label">Start Date</label>
                 <input type="text" class="form-control" id="start_date" name="start_date" placeholder="DD/MM/YYYY" required value="{{ request.form.start_date or default_start_date }}">
               </div>
-              <div class="col-md-4 mb-3">
+              <div class="col-md-4">
                 <label for="end_date" class="form-label">End Date</label>
                 <input type="text" class="form-control" id="end_date" name="end_date" placeholder="DD/MM/YYYY" required value="{{ request.form.end_date or default_end_date }}">
               </div>
             </div>
-            <!-- Submit button for loading stock data -->
-            <button type="submit" name="action" value="load_stock" class="btn btn-primary w-100">Load Stock Data</button>
+            <button type="submit" name="action" value="load_stock" class="btn btn-primary w-100 mt-3">Load Stock Data</button>
           </div>
         </div>
+
         {% if result %}
           <div class="card modern-card my-4">
             <div class="card-body">
-              <h3 class="card-title">Technical Indicators Chart</h3>
+              <h3 class="card-title">Technical Indicators</h3>
               <ul class="list-group list-group-flush">
                 <li class="list-group-item"><strong>Latest Close:</strong> {{ result.latest_close|default("N/A") }}</li>
                 <li class="list-group-item"><strong>50-day SMA:</strong> {{ result.SMA_50|default("N/A") }}</li>
@@ -76,30 +76,33 @@
                 <li class="list-group-item"><strong>RSI:</strong> {{ result.RSI|default("N/A") }}</li>
                 <li class="list-group-item"><strong>MACD:</strong> {{ result.MACD|default("N/A") }}</li>
                 <li class="list-group-item"><strong>Signal Line:</strong> {{ result.Signal_Line|default("N/A") }}</li>
-                <li class="list-group-item"><strong>Recommendation:</strong> {{ result.recommendation|default("N/A") }}</li>
+                <!-- Display Sharpe Ratio if we computed it -->
+                <li class="list-group-item"><strong>Sharpe Ratio:</strong> {{ result.sharpe_ratio|default("N/A") }}</li>
               </ul>
               <!-- Chart container for Chart.js -->
-              <canvas id="techChart" class="mt-4"></canvas>
+              <div class="mt-4" style="height:400px;">
+                <canvas id="techChart"></canvas>
+              </div>
             </div>
           </div>
         {% endif %}
       </div>
-      
+
       <!-- DCA Calculator Tab -->
       <div class="tab-pane fade {% if active_tab == 'dca' %}show active{% endif %}" id="dca" role="tabpanel" aria-labelledby="dca-tab">
         <div class="card modern-card my-4">
           <div class="card-body">
             <h2 class="card-title">DCA Calculator</h2>
-            <div class="row">
-              <div class="col-md-4 mb-3">
+            <div class="row g-3">
+              <div class="col-md-4">
                 <label for="initial_investment" class="form-label">Initial Investment ($)</label>
                 <input type="text" class="form-control" id="initial_investment" name="initial_investment" placeholder="e.g., 1000" value="{{ request.form.initial_investment or '1000' }}">
               </div>
-              <div class="col-md-4 mb-3">
+              <div class="col-md-4">
                 <label for="periodic_investment" class="form-label">Periodic Investment ($)</label>
                 <input type="text" class="form-control" id="periodic_investment" name="periodic_investment" placeholder="e.g., 200" value="{{ request.form.periodic_investment or '200' }}">
               </div>
-              <div class="col-md-4 mb-3">
+              <div class="col-md-4">
                 <label for="frequency" class="form-label">Investment Frequency</label>
                 <select class="form-select" id="frequency" name="frequency">
                   <option value="weekly" {% if request.form.frequency=='weekly' %}selected{% endif %}>Weekly</option>
@@ -109,16 +112,16 @@
                 </select>
               </div>
             </div>
-            <div class="row">
-              <div class="col-md-4 mb-3">
+            <div class="row g-3 mt-1">
+              <div class="col-md-4">
                 <label for="duration" class="form-label">Duration (Years)</label>
                 <input type="number" class="form-control" id="duration" name="duration" value="{{ request.form.duration or '5' }}" min="1" max="50">
               </div>
-              <div class="col-md-8 mb-3 align-self-end">
-                <!-- Submit button for calculating DCA -->
+              <div class="col-md-8 align-self-end">
                 <button type="submit" name="action" value="calculate_dca" class="btn btn-primary w-100">Calculate DCA</button>
               </div>
             </div>
+
             {% if dca_result %}
               <div class="mt-4">
                 <h3 class="card-title">DCA Results</h3>
@@ -128,13 +131,15 @@
                   <li class="list-group-item"><strong>Total Profit:</strong> {{ dca_result.total_profit|default("N/A") }}</li>
                   <li class="list-group-item"><strong>Expected Annual Return:</strong> {{ dca_result.expected_return|default("N/A") }}%</li>
                 </ul>
-                <canvas id="dcaChart" class="mt-4"></canvas>
+                <div class="mt-4" style="height:400px;">
+                  <canvas id="dcaChart"></canvas>
+                </div>
               </div>
             {% endif %}
           </div>
         </div>
       </div>
-      
+
       <!-- Fundamentals Tab -->
       <div class="tab-pane fade" id="fundamentals" role="tabpanel" aria-labelledby="fundamentals-tab">
         <div class="card modern-card my-4">
@@ -152,7 +157,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Earnings Tab -->
       <div class="tab-pane fade" id="earnings" role="tabpanel" aria-labelledby="earnings-tab">
         <div class="card modern-card my-4">
@@ -183,7 +188,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Options Chain Tab -->
       <div class="tab-pane fade" id="options" role="tabpanel" aria-labelledby="options-tab">
         <div class="card modern-card my-4">
@@ -250,19 +255,27 @@
           </div>
         </div>
       </div>
-      
+
       <!-- News Tab -->
       <div class="tab-pane fade" id="news" role="tabpanel" aria-labelledby="news-tab">
         <div class="card modern-card my-4">
           <div class="card-body">
             <h2 class="card-title">Latest News</h2>
             {% if news %}
-              <div class="list-group">
+              <!-- Example card layout for each news item -->
+              <div class="row row-cols-1 row-cols-md-2 g-4">
                 {% for item in news %}
-                  <a href="{{ item.link }}" target="_blank" class="list-group-item list-group-item-action">
-                    <h5 class="mb-1">{{ item.title|default("No Title") }}</h5>
-                    <small>{{ item.publishedDate|default("N/A") }} - {{ item.publisher|default("Unknown") }}</small>
-                  </a>
+                  <div class="col">
+                    <div class="card h-100">
+                      <div class="card-body">
+                        <h5 class="card-title">{{ item.title|default("No Title") }}</h5>
+                        <p class="card-text">
+                          <small>{{ item.publishedDate|default("N/A") }} - {{ item.publisher|default("Unknown") }}</small>
+                        </p>
+                        <a href="{{ item.link }}" target="_blank" class="btn btn-sm btn-primary">Read More</a>
+                      </div>
+                    </div>
+                  </div>
                 {% endfor %}
               </div>
             {% else %}
@@ -271,7 +284,6 @@
           </div>
         </div>
       </div>
-      
     </div>
   </div>
 </form>
@@ -352,6 +364,7 @@
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,  // <--- Add this so it scales well
       plugins: {
         legend: { display: true, position: 'top' },
         title: {
@@ -373,7 +386,7 @@
         y1: {
           position: 'right',
           grid: { drawOnChartArea: false },
-          ticks: { callback: function(value) { return value; } }
+          ticks: { callback: function(value){ return value; } }
         }
       }
     }
@@ -389,6 +402,7 @@
   var allValues = invested.concat(valueData);
   var minY = Math.min(...allValues) * 0.95;
   var maxY = Math.max(...allValues) * 1.05;
+
   var dcaChart = new Chart(ctxDCA, {
     type: 'line',
     data: {
@@ -400,7 +414,7 @@
           borderColor: 'rgba(40,167,69,1)',
           backgroundColor: 'rgba(40,167,69,0.1)',
           borderWidth: 2,
-          pointRadius: 0,
+          pointRadius: 3,
           tension: 0.3
         },
         {
@@ -409,13 +423,14 @@
           borderColor: 'rgba(220,53,69,1)',
           backgroundColor: 'rgba(220,53,69,0.1)',
           borderWidth: 2,
-          pointRadius: 0,
+          pointRadius: 3,
           tension: 0.3
         }
       ]
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false, // <--- Add this
       plugins: {
         legend: { display: true, position: 'top' },
         title: {
@@ -446,9 +461,9 @@
   // Activate the appropriate tab based on active_tab variable
   var activeTab = "{{ active_tab }}";
   if (activeTab === "dca") {
-      var dcaTabTrigger = document.querySelector('#dca-tab');
-      var tabInstance = new bootstrap.Tab(dcaTabTrigger);
-      tabInstance.show();
+    var dcaTabTrigger = document.querySelector('#dca-tab');
+    var tabInstance = new bootstrap.Tab(dcaTabTrigger);
+    tabInstance.show();
   }
 </script>
 {% endblock %}
