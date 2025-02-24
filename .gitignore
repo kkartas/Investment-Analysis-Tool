@@ -2,3 +2,8 @@
 yfinance.cache
 services/__pycache__/data_loader.cpython-311.pyc
 models/__pycache__/recommendations.cpython-311.pyc
+models/__pycache__/earnings.cpython-311.pyc
+models/__pycache__/news_api.cpython-311.pyc
+models/__pycache__/options.cpython-311.pyc
+models/__pycache__/earnings.cpython-311.pyc
+models/__pycache__/dca_calculations.cpython-311.pyc

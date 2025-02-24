@@ -6,16 +6,14 @@ from datetime import datetime, timedelta
 import math
 import pandas as pd
 
-# Your existing imports for the rest of the app
 from models.stock_analysis import calculate_indicators, get_latest_recommendation
 from models.dca_calculations import dca_calculation, calculate_average_annual_return
 from services.data_loader import fetch_stock_data
 from models.fundamentals import get_fundamentals
-from models.earnings import fetch_earnings
-from models.options import get_options_chain
-from models.news import get_news_by_search  # or your original get_news
+from models.news import get_news_by_search
 from models.recommendations import get_market_recommendation
 from models.search import search_tickers
+from models.earnings import get_earnings
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
@@ -49,12 +47,7 @@ def safe_chart_val(val):
 def search_tickers_route():
     """
     AJAX endpoint for partial search of company names / tickers.
-    e.g. GET /search_tickers?query=appl
-    Returns JSON array of matches:
-      [
-        {symbol: "AAPL", shortname: "Apple Inc.", longname: "...", exch: "NMS", type: "Equity"},
-        ...
-      ]
+    e.g., GET /search_tickers?query=AAPL
     """
     query = request.args.get('query', '').strip()
     results = search_tickers(query, max_results=10)
@@ -63,18 +56,19 @@ def search_tickers_route():
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    # Variables for the template
     result = {}
     dca_result = {}
     fundamentals_data = {}
-    earnings_data = []
-    options_chain = None
     news_data = []
+    # ### NEW EARNINGS CODE ###
+    earnings_data = []  # we'll fill it with get_earnings
     error = None
     stock_chart_data = {}
     dca_chart_data = {}
-    active_tab = 'stock-data'  # default tab
+    active_tab = 'stock-data'  # default
 
-    # Default date range
+    # Default date range: 2 years
     default_end_date_dt = datetime.today()
     default_start_date_dt = default_end_date_dt - timedelta(days=730)
     default_end_date = default_end_date_dt.strftime('%d/%m/%Y')
@@ -89,20 +83,24 @@ def index():
         start_date_input = request.form.get('start_date') or default_start_date
         end_date_input = request.form.get('end_date') or default_end_date
 
+        # Parse dates
         try:
             start_date = datetime.strptime(start_date_input, '%d/%m/%Y').strftime('%Y-%m-%d')
             end_date = datetime.strptime(end_date_input, '%d/%m/%Y').strftime('%Y-%m-%d')
         except ValueError:
             error = "Dates must be in DD/MM/YYYY format."
-            return render_template('index.html',
-                                   error=error,
-                                   default_start_date=start_date_input,
-                                   default_end_date=end_date_input,
-                                   active_tab=active_tab)
+            return render_template(
+                'index.html',
+                error=error,
+                default_start_date=start_date_input,
+                default_end_date=end_date_input,
+                active_tab=active_tab
+            )
 
         if not symbol:
             error = "Please enter a valid stock symbol."
         else:
+            # Attempt to fetch historical data
             try:
                 data = fetch_stock_data(symbol)
                 ticker = yf.Ticker(symbol)
@@ -111,6 +109,7 @@ def index():
                 data = None
 
             if data is not None:
+                # Filter by the chosen date range
                 try:
                     data = data.loc[start_date:end_date]
                 except Exception as e:
@@ -119,8 +118,11 @@ def index():
                 if data.empty:
                     error = "No data available for the selected date range."
                 else:
+                    # Calculate indicators
                     data = calculate_indicators(data)
                     latest_row, our_rec = get_latest_recommendation(data)
+
+                    # Prepare chart data
                     stock_chart_data = {
                         'dates': data.index.strftime('%d/%m/%Y').tolist(),
                         'close': [safe_chart_val(val) for val in data['Close'].tolist()],
@@ -148,7 +150,7 @@ def index():
                             'market_recommendation_counts': market_counts
                         }
 
-                    # Handle DCA
+                    # DCA handling
                     init_inv_str = request.form.get('initial_investment')
                     period_inv_str = request.form.get('periodic_investment')
                     duration_str = request.form.get('duration')
@@ -159,9 +161,12 @@ def index():
 
                     calc_return = calculate_average_annual_return(data)
                     total_inv, future_value, total_profit, data_points = dca_calculation(
-                        data, init_inv, period_inv,
-                        (request.form.get('frequency') or 'monthly').lower(),
-                        dur, calc_return
+                        data,
+                        initial_investment=init_inv,
+                        periodic_investment=period_inv,
+                        frequency=(request.form.get('frequency') or 'monthly').lower(),
+                        years=dur,
+                        annual_return=calc_return
                     )
                     dca_result = {
                         'total_invested': f"{total_inv:,.0f}",
@@ -170,7 +175,7 @@ def index():
                         'expected_return': f"{calc_return * 100:.2f}"
                     }
 
-                    # Build DCA chart
+                    # Build DCA chart data
                     try:
                         dates_pd = pd.to_datetime(data_points['dates'])
                         yearly_dates = []
@@ -195,7 +200,7 @@ def index():
                             'value': data_points['value']
                         }
 
-                    # Which tab
+                    # Which tab after POST
                     if action == "calculate_dca":
                         active_tab = 'dca'
                     else:
@@ -206,21 +211,14 @@ def index():
                         fundamentals_data = get_fundamentals(ticker)
                     except Exception:
                         fundamentals_data = {}
-                    
-                    # Earnings
+
+                    # ### NEW EARNINGS CODE ###
+                    # Instead of old approach, call get_earnings from models/earnings.py
                     try:
-                        earnings_data = fetch_earnings(symbol, api_key='your_api_key_here')
+                        earnings_data = get_earnings(symbol)  # returns a list of dicts
                     except Exception as e:
-                        print("Earnings fetch exception:", e)
+                        print("Error fetching new earnings:", e)
                         earnings_data = []
-                    
-                    # Options
-                    try:
-                        calls, puts = get_options_chain(ticker)
-                        options_chain = {'calls': calls, 'puts': puts} if (calls or puts) else None
-                    except Exception as e:
-                        print("Options chain exception:", e)
-                        options_chain = None
 
                     # News
                     try:
@@ -229,19 +227,20 @@ def index():
                         print("News fetch exception:", e)
                         news_data = []
 
-    return render_template('index.html',
-                           result=result,
-                           dca_result=dca_result,
-                           fundamentals=fundamentals_data,
-                           earnings=earnings_data,
-                           options_chain=options_chain,
-                           news=news_data,
-                           error=error,
-                           default_start_date=start_date_input,
-                           default_end_date=end_date_input,
-                           stock_chart_data=stock_chart_data,
-                           dca_chart_data=dca_chart_data,
-                           active_tab=active_tab)
+    return render_template(
+        'index.html',
+        result=result,
+        dca_result=dca_result,
+        fundamentals=fundamentals_data,
+        earnings=earnings_data,  # pass to template
+        news=news_data,
+        error=error,
+        default_start_date=start_date_input,
+        default_end_date=end_date_input,
+        stock_chart_data=stock_chart_data,
+        dca_chart_data=dca_chart_data,
+        active_tab=active_tab
+    )
 
 
 if __name__ == '__main__':
