@@ -50,11 +50,22 @@
             {% if error %}
               <div class="alert alert-danger">{{ error }}</div>
             {% endif %}
+            
             <div class="row g-3">
-              <div class="col-md-4">
-                <label for="symbol" class="form-label">Stock Symbol</label>
-                <input type="text" class="form-control" id="symbol" name="symbol" placeholder="e.g., AAPL" required value="{{ request.form.symbol or '' }}">
+              <!-- The new autocomplete approach -->
+              <div class="col-md-4 position-relative">
+                <label for="symbol_input" class="form-label">Stock Symbol or Name</label>
+                <!-- This is the text field the user types partial queries into -->
+                <input type="text" class="form-control" id="symbol_input" placeholder="e.g., Apple or AAPL" oninput="onSymbolInputChange()">
+                <!-- Hidden field that actually gets submitted as 'symbol' -->
+                <input type="hidden" id="symbol" name="symbol">
+                <!-- Suggestions dropdown -->
+                <div id="suggestions" 
+                     class="dropdown-menu p-0 mt-1" 
+                     style="width:100%; display:none; max-height:200px; overflow-y:auto;">
+                </div>
               </div>
+
               <div class="col-md-4">
                 <label for="start_date" class="form-label">Start Date</label>
                 <input type="text" class="form-control" id="start_date" name="start_date" placeholder="DD/MM/YYYY" required value="{{ request.form.start_date or default_start_date }}">
@@ -64,6 +75,7 @@
                 <input type="text" class="form-control" id="end_date" name="end_date" placeholder="DD/MM/YYYY" required value="{{ request.form.end_date or default_end_date }}">
               </div>
             </div>
+            
             <button type="submit" name="action" value="load_stock" class="btn btn-primary w-100 mt-3">Load Stock Data</button>
           </div>
         </div>
@@ -123,8 +135,8 @@
           </div>
         </div>
         {% endif %}
-
-      </div> <!-- END of the Stock Data tab-pane -->
+        
+      </div> <!-- END Stock Data tab-pane -->
 
       <!-- DCA Calculator Tab -->
       <div class="tab-pane fade {% if active_tab == 'dca' %}show active{% endif %}" 
@@ -339,6 +351,66 @@
     dateFormat: "d/m/Y",
     defaultDate: "{{ default_end_date }}"
   });
+</script>
+
+<!-- Autocomplete logic for searching partial company names / tickers -->
+<script>
+  let timer = null;
+
+  function onSymbolInputChange() {
+    const query = document.getElementById('symbol_input').value.trim();
+    const suggestionsDiv = document.getElementById('suggestions');
+
+    // Clear old data
+    clearTimeout(timer);
+    suggestionsDiv.innerHTML = '';
+
+    if (query.length < 2) {
+      // Hide suggestions if < 2 chars
+      suggestionsDiv.style.display = 'none';
+      return;
+    }
+
+    // Debounce - only search after 300ms
+    timer = setTimeout(() => {
+      fetch('/search_tickers?query=' + encodeURIComponent(query))
+        .then(resp => resp.json())
+        .then(data => {
+          if (!data || data.length === 0) {
+            suggestionsDiv.innerHTML = '<div class="dropdown-item text-muted">No matches</div>';
+          } else {
+            let html = '';
+            data.forEach(item => {
+              const displayedName = item.shortname || item.longname || item.symbol;
+              html += `
+                <button type="button" class="dropdown-item" 
+                        onclick="selectSymbol('${item.symbol}', '${displayedName}')">
+                  <strong>${item.symbol}</strong> – ${displayedName}
+                </button>
+              `;
+            });
+            suggestionsDiv.innerHTML = html;
+          }
+          // Show it
+          suggestionsDiv.style.display = 'block';
+        })
+        .catch(err => {
+          console.error(err);
+          suggestionsDiv.innerHTML = '<div class="dropdown-item text-danger">Error fetching results</div>';
+          suggestionsDiv.style.display = 'block';
+        });
+    }, 300);
+  }
+
+  function selectSymbol(sym, displayName) {
+    // Set hidden input's value
+    document.getElementById('symbol').value = sym;
+    // Also show the chosen name in the text box
+    document.getElementById('symbol_input').value = displayName;
+    // Hide suggestions
+    document.getElementById('suggestions').innerHTML = '';
+    document.getElementById('suggestions').style.display = 'none';
+  }
 </script>
 
 {% if stock_chart_data.dates and (stock_chart_data.dates|length) > 0 %}
