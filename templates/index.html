@@ -1,504 +1,978 @@
 {% extends "base.html" %}
 
 {% block content %}
-<form method="POST">
-  <div class="container-fluid">
-    <!-- Nav Tabs -->
-    <ul class="nav nav-tabs nav-fill modern-tabs flex-wrap" id="investmentTab" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link {% if active_tab == 'stock-data' %}active{% endif %}" id="stock-data-tab" data-bs-toggle="tab" data-bs-target="#stock-data" type="button" role="tab" aria-controls="stock-data" aria-selected="true">
-          Stock Data
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link {% if active_tab == 'dca' %}active{% endif %}" id="dca-tab" data-bs-toggle="tab" data-bs-target="#dca" type="button" role="tab" aria-controls="dca" aria-selected="false">
-          DCA Calculator
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="fundamentals-tab" data-bs-toggle="tab" data-bs-target="#fundamentals" type="button" role="tab" aria-controls="fundamentals" aria-selected="false">
-          Fundamentals
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="earnings-tab" data-bs-toggle="tab" data-bs-target="#earnings" type="button" role="tab" aria-controls="earnings" aria-selected="false">
-          Earnings
-        </button>
-      </li>
-      <!-- REMOVED the Options tab entirely -->
-      <li class="nav-item" role="presentation">
-        <button class="nav-link" id="news-tab" data-bs-toggle="tab" data-bs-target="#news" type="button" role="tab" aria-controls="news" aria-selected="false">
-          News
-        </button>
-      </li>
-    </ul>
-
-    <div class="tab-content modern-tabs-content" id="investmentTabContent">
-      
-      <!-- Stock Data Tab -->
-      <div class="tab-pane fade {% if active_tab == 'stock-data' %}show active{% endif %}" 
-           id="stock-data" role="tabpanel" aria-labelledby="stock-data-tab">
-        
-        <div class="card modern-card my-4">
-          <div class="card-body">
-            <h2 class="card-title">Load Stock Data</h2>
-            {% if error %}
-              <div class="alert alert-danger">{{ error }}</div>
-            {% endif %}
-            
-            <div class="row g-3">
-              <div class="col-md-4 position-relative">
-                <label for="symbol_input" class="form-label">Stock Symbol or Name</label>
-                <input type="text" class="form-control" id="symbol_input" placeholder="e.g., Apple or AAPL" oninput="onSymbolInputChange()">
-                <input type="hidden" id="symbol" name="symbol">
-                <div id="suggestions" 
-                     class="dropdown-menu p-0 mt-1" 
-                     style="width:100%; display:none; max-height:200px; overflow-y:auto;">
-                </div>
-              </div>
-
-              <div class="col-md-4">
-                <label for="start_date" class="form-label">Start Date</label>
-                <input type="text" class="form-control" id="start_date" name="start_date" placeholder="DD/MM/YYYY" required value="{{ request.form.start_date or default_start_date }}">
-              </div>
-              <div class="col-md-4">
-                <label for="end_date" class="form-label">End Date</label>
-                <input type="text" class="form-control" id="end_date" name="end_date" placeholder="DD/MM/YYYY" required value="{{ request.form.end_date or default_end_date }}">
-              </div>
-            </div>
-            <button type="submit" name="action" value="load_stock" class="btn btn-primary w-100 mt-3">Load Stock Data</button>
-          </div>
-        </div>
-
-        {% if result %}
-        <div class="card modern-card my-4">
-          <div class="card-body">
-            <h3 class="card-title">Technical Indicators</h3>
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item"><strong>Latest Close:</strong> {{ result.latest_close|default("N/A") }}</li>
-              <li class="list-group-item"><strong>50-day SMA:</strong> {{ result.SMA_50|default("N/A") }}</li>
-              <li class="list-group-item"><strong>200-day SMA:</strong> {{ result.SMA_200|default("N/A") }}</li>
-              <li class="list-group-item"><strong>RSI:</strong> {{ result.RSI|default("N/A") }}</li>
-              <li class="list-group-item"><strong>MACD:</strong> {{ result.MACD|default("N/A") }}</li>
-              <li class="list-group-item"><strong>Signal Line:</strong> {{ result.Signal_Line|default("N/A") }}</li>
-
-              <!-- Our Recommendation (technical) -->
-              <li class="list-group-item">
-                <strong>Our Recommendation:</strong>
-                <span class="{% if result.our_recommendation in ['Buy','Strong Buy'] %}text-success{% elif result.our_recommendation == 'Hold' %}text-secondary{% else %}text-danger{% endif %}">
-                  {{ result.our_recommendation|default("N/A") }}
-                </span>
-              </li>
-
-              <!-- Market Recommendation + Collapsible Detail -->
-              <li class="list-group-item">
-                <strong>Market Recommendation:</strong>
-                <span class="{% if result.market_recommendation in ['Buy','Strong Buy'] %}text-success{% elif result.market_recommendation == 'Hold' %}text-secondary{% else %}text-danger{% endif %}">
-                  {{ result.market_recommendation|default("N/A") }}
-                </span>
-                <button class="btn btn-sm btn-link" type="button" 
-                        data-bs-toggle="collapse" data-bs-target="#marketRecDetails" 
-                        aria-expanded="false" aria-controls="marketRecDetails">
-                  Show Details
-                </button>
-                <div class="collapse mt-2" id="marketRecDetails">
-                  <ul class="list-group list-group-flush">
-                    {% for rec_label, count_val in result.market_recommendation_counts.items() %}
-                      <li class="list-group-item">
-                        <span class="{% if rec_label in ['Buy','Strong Buy'] %}text-success{% elif rec_label == 'Hold' %}text-secondary{% else %}text-danger{% endif %}">
-                          {{ rec_label }}: {{ count_val }}
-                        </span>
-                      </li>
-                    {% endfor %}
-                  </ul>
-                </div>
-              </li>
-            </ul>
-
-            <!-- Chart container for Chart.js -->
-            <div class="mt-4" style="height:400px;">
-              <canvas id="techChart"></canvas>
-            </div>
-          </div>
-        </div>
-        {% endif %}
-        
-      </div> <!-- END stock-data tab -->
-
-      <!-- DCA Calculator Tab -->
-      <div class="tab-pane fade {% if active_tab == 'dca' %}show active{% endif %}" 
-           id="dca" role="tabpanel" aria-labelledby="dca-tab">
-        <div class="card modern-card my-4">
-          <div class="card-body">
-            <h2 class="card-title">DCA Calculator</h2>
-            <div class="row g-3">
-              <div class="col-md-4">
-                <label for="initial_investment" class="form-label">Initial Investment ($)</label>
-                <input type="text" class="form-control" id="initial_investment" name="initial_investment" placeholder="e.g., 1000" value="{{ request.form.initial_investment or '1000' }}">
-              </div>
-              <div class="col-md-4">
-                <label for="periodic_investment" class="form-label">Periodic Investment ($)</label>
-                <input type="text" class="form-control" id="periodic_investment" name="periodic_investment" placeholder="e.g., 200" value="{{ request.form.periodic_investment or '200' }}">
-              </div>
-              <div class="col-md-4">
-                <label for="frequency" class="form-label">Investment Frequency</label>
-                <select class="form-select" id="frequency" name="frequency">
-                  <option value="weekly" {% if request.form.frequency=='weekly' %}selected{% endif %}>Weekly</option>
-                  <option value="monthly" {% if request.form.frequency=='monthly' or not request.form.frequency %}selected{% endif %}>Monthly</option>
-                  <option value="quarterly" {% if request.form.frequency=='quarterly' %}selected{% endif %}>Quarterly</option>
-                  <option value="yearly" {% if request.form.frequency=='yearly' %}selected{% endif %}>Yearly</option>
-                </select>
-              </div>
-            </div>
-            <div class="row g-3 mt-1">
-              <div class="col-md-4">
-                <label for="duration" class="form-label">Duration (Years)</label>
-                <input type="number" class="form-control" id="duration" name="duration" value="{{ request.form.duration or '5' }}" min="1" max="50">
-              </div>
-              <div class="col-md-8 align-self-end">
-                <button type="submit" name="action" value="calculate_dca" class="btn btn-primary w-100">Calculate DCA</button>
-              </div>
-            </div>
-
-            {% if dca_result %}
-              <div class="mt-4">
-                <h3 class="card-title">DCA Results</h3>
-                <ul class="list-group list-group-flush">
-                  <li class="list-group-item"><strong>Total Invested:</strong> {{ dca_result.total_invested|default("N/A") }}</li>
-                  <li class="list-group-item"><strong>Future Value:</strong> {{ dca_result.future_value|default("N/A") }}</li>
-                  <li class="list-group-item"><strong>Total Profit:</strong> {{ dca_result.total_profit|default("N/A") }}</li>
-                  <li class="list-group-item"><strong>Expected Annual Return:</strong> {{ dca_result.expected_return|default("N/A") }}%</li>
-                </ul>
-                <div class="mt-4" style="height:400px;">
-                  <canvas id="dcaChart"></canvas>
-                </div>
-              </div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <!-- Fundamentals Tab -->
-      <div class="tab-pane fade" id="fundamentals" role="tabpanel" aria-labelledby="fundamentals-tab">
-        <div class="card modern-card my-4">
-          <div class="card-body">
-            <h2 class="card-title">Fundamental Data</h2>
-            {% if fundamentals %}
-              <ul class="list-group list-group-flush">
-                {% for key, value in fundamentals.items() %}
-                  <li class="list-group-item"><strong>{{ key }}:</strong> {{ value|default("N/A") }}</li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              <p>No fundamental data available. Please load stock data.</p>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <!-- Earnings Tab -->
-      <div class="tab-pane fade" id="earnings" role="tabpanel" aria-labelledby="earnings-tab">
-        <div class="card modern-card my-4">
-          <div class="card-body">
-            <h2 class="card-title">Earnings Data</h2>
-            {% if earnings and earnings|length > 0 %}
-              <table class="table table-striped">
-                <thead>
-                  <tr>
-                    <th>Period</th>
-                    <th>Type</th>
-                    <th>Total Revenue</th>
-                    <th>Net Income</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for row in earnings %}
-                    <tr>
-                      <td>{{ row.period }}</td>
-                      <td>{{ row.type }}</td>
-                      <td>{{ row.revenue }}</td>
-                      <td>{{ row.net_income }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            {% else %}
-              <p>No earnings data found.</p>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-
-      <!-- REMOVED the entire "Options Chain" tab block -->
-
-      <!-- News Tab -->
-      <div class="tab-pane fade" id="news" role="tabpanel" aria-labelledby="news-tab">
-        <div class="card modern-card my-4">
-          <div class="card-body">
-            <h2 class="card-title">Latest News</h2>
-            {% if news %}
-              <div class="row row-cols-1 row-cols-md-2 g-4">
-                {% for item in news %}
-                  <div class="col">
-                    <div class="card h-100">
-                      <div class="card-body">
-                        <h5 class="card-title">{{ item.title|default("No Title") }}</h5>
-                        <p class="card-text">
-                          <small>{{ item.publishedDate|default("N/A") }} - {{ item.publisher|default("Unknown") }}</small>
-                        </p>
-                        <a href="{{ item.link }}" target="_blank" class="btn btn-sm btn-primary">Read More</a>
-                      </div>
+<div class="row">
+    <!-- Search and Stock Summary Section -->
+    <div class="col-lg-12 mb-4">
+        <div class="card">
+            <div class="card-body p-4">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-3 mb-md-0">
+                            <div class="stock-search-container" x-data="{ searchQuery: '', showResults: false, results: [] }">
+                                <form method="POST" action="/" class="mb-0 position-relative" id="stockForm">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                                        <input 
+                                            type="text" 
+                                            class="form-control form-control-lg" 
+                                            placeholder="Enter stock symbol or name..." 
+                                            name="symbol" 
+                                            id="symbol"
+                                            autocomplete="off"
+                                            x-model="searchQuery"
+                                            x-on:input="
+                                                if(searchQuery.length > 1) {
+                                                    fetch('/search_tickers?query=' + searchQuery)
+                                                    .then(response => response.json())
+                                                    .then(data => {
+                                                        results = data;
+                                                        showResults = results.length > 0;
+                                                    });
+                                                } else {
+                                                    showResults = false;
+                                                }
+                                            "
+                                            x-on:blur="setTimeout(() => showResults = false, 300)"
+                                            x-on:focus="if(searchQuery.length > 1) showResults = true"
+                                            {% if result %} value="{{ result.symbol }}" {% endif %}
+                                            required
+                                        >
+                                        <button type="submit" name="action" value="load_stock" class="btn btn-primary">
+                                            <i class="fas fa-chart-line me-1"></i> Analyze
+                                        </button>
+                                        <input type="hidden" name="start_date" id="start_date" value="{{ default_start_date }}">
+                                        <input type="hidden" name="end_date" id="end_date" value="{{ default_end_date }}">
+                                    </div>
+                                    <template x-if="showResults">
+                                        <div class="stock-search-results">
+                                            <template x-for="item in results" :key="item.symbol">
+                                                <div class="stock-search-item" 
+                                                     x-on:click="
+                                                        document.getElementById('symbol').value = item.symbol;
+                                                        searchQuery = item.symbol;
+                                                        showResults = false;
+                                                        document.getElementById('stockForm').submit();
+                                                     ">
+                                                    <div class="fw-bold" x-text="item.symbol"></div>
+                                                    <div class="small text-secondary" x-text="item.name"></div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p>No news data available. Please load stock data.</p>
-            {% endif %}
-          </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-md-end">
+                            <div class="date-range-picker">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dateRangeBtn" data-bs-toggle="dropdown">
+                                    <i class="far fa-calendar-alt me-1"></i> 
+                                    <span id="dateRangeText">Date Range</span>
+                                </button>
+                                <div class="dropdown-menu p-3" style="width: 300px;">
+                                    <div class="mb-2">
+                                        <label for="startDatePicker" class="form-label">Start Date</label>
+                                        <input type="text" class="form-control" id="startDatePicker" placeholder="Start Date">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="endDatePicker" class="form-label">End Date</label>
+                                        <input type="text" class="form-control" id="endDatePicker" placeholder="End Date">
+                                    </div>
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-primary" id="applyDateRange">Apply</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-</form>
+</div>
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
+{% if result %}
+<!-- Stock Summary -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">{{ result.symbol }} Price Chart</h5>
+                </div>
+                <div class="btn-group" role="group">
+                    <a href="/period?symbol={{ result.symbol }}&period=1m" class="btn btn-sm btn-outline-secondary {% if period == '1m' %}active{% endif %}">1M</a>
+                    <a href="/period?symbol={{ result.symbol }}&period=3m" class="btn btn-sm btn-outline-secondary {% if period == '3m' %}active{% endif %}">3M</a>
+                    <a href="/period?symbol={{ result.symbol }}&period=6m" class="btn btn-sm btn-outline-secondary {% if period == '6m' %}active{% endif %}">6M</a>
+                    <a href="/period?symbol={{ result.symbol }}&period=1y" class="btn btn-sm btn-outline-secondary {% if period == '1y' or not period %}active{% endif %}">1Y</a>
+                    <a href="/period?symbol={{ result.symbol }}&period=5y" class="btn btn-sm btn-outline-secondary {% if period == '5y' %}active{% endif %}">5Y</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 class="mb-0 fw-bold">${{ result.latest_close }}</h2>
+                        <div class="text-muted">Last Price</div>
+                    </div>
+                    <div>
+                        <span class="recommendation-badge {% if result.our_recommendation == 'Buy' %}buy{% elif result.our_recommendation == 'Sell' %}sell{% else %}hold{% endif %}">
+                            {{ result.our_recommendation }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <div class="metric-label">SMA 50</div>
+                        <div class="metric-value">${{ result.SMA_50 }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-label">SMA 200</div>
+                        <div class="metric-value">${{ result.SMA_200 }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-label">RSI</div>
+                        <div class="metric-value">{{ result.RSI }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-label">MACD</div>
+                        <div class="metric-value">{{ result.MACD }}</div>
+                    </div>
+                </div>
+                
+                <!-- Market Sentiment Section -->
+                <div class="border-top pt-3">
+                    <div class="metric-label mb-2">Market Sentiment</div>
+                    <div class="d-flex justify-content-between">
+                        <div class="text-center">
+                            <div class="metric-value">{{ result.market_recommendation_counts.get('buy', 0) }}</div>
+                            <div class="small text-success">Buy</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="metric-value">{{ result.market_recommendation_counts.get('hold', 0) }}</div>
+                            <div class="small text-warning">Hold</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="metric-value">{{ result.market_recommendation_counts.get('sell', 0) }}</div>
+                            <div class="small text-danger">Sell</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analysis Tabs -->
+<div class="card mt-4">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="analysisTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'stock-data' %}active{% endif %}" id="stock-data-tab" data-bs-toggle="tab" data-bs-target="#stock-data" type="button" role="tab">Technical Analysis</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'dca' %}active{% endif %}" id="dca-tab" data-bs-toggle="tab" data-bs-target="#dca" type="button" role="tab">DCA Calculator</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="fundamentals-tab" data-bs-toggle="tab" data-bs-target="#fundamentals" type="button" role="tab">Fundamentals</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="earnings-tab" data-bs-toggle="tab" data-bs-target="#earnings" type="button" role="tab">Earnings</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="news-tab" data-bs-toggle="tab" data-bs-target="#news" type="button" role="tab">News</button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="analysisTabContent">
+            <!-- Technical Analysis Tab -->
+            <div class="tab-pane fade {% if active_tab == 'stock-data' %}show active{% endif %}" id="stock-data" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <h5 class="mb-3">Technical Indicators</h5>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Indicator</th>
+                                    <th>Value</th>
+                                    <th>Signal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Price vs SMA (50)</td>
+                                    <td>{{ result.latest_close }} / {{ result.SMA_50 }}</td>
+                                    <td>
+                                        {% if result.latest_close|float > result.SMA_50|float %}
+                                        <span class="badge bg-success">Bullish</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Bearish</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Price vs SMA (200)</td>
+                                    <td>{{ result.latest_close }} / {{ result.SMA_200 }}</td>
+                                    <td>
+                                        {% if result.latest_close|float > result.SMA_200|float %}
+                                        <span class="badge bg-success">Bullish</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Bearish</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>RSI (14)</td>
+                                    <td>{{ result.RSI }}</td>
+                                    <td>
+                                        {% if result.RSI|float < 30 %}
+                                        <span class="badge bg-success">Oversold</span>
+                                        {% elif result.RSI|float > 70 %}
+                                        <span class="badge bg-danger">Overbought</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Neutral</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>MACD</td>
+                                    <td>{{ result.MACD }}</td>
+                                    <td>
+                                        {% if result.MACD|float > result.Signal_Line|float %}
+                                        <span class="badge bg-success">Bullish</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Bearish</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-lg-6">
+                        <!-- Market Recommendations Section -->
+                        <h5 class="mb-3">Market Recommendations</h5>
+                        {% if result.market_recommendation_counts %}
+                            {% set buy_count = result.market_recommendation_counts.get('buy', 0) %}
+                            {% set hold_count = result.market_recommendation_counts.get('hold', 0) %}
+                            {% set sell_count = result.market_recommendation_counts.get('sell', 0) %}
+                            {% set total_count = buy_count + hold_count + sell_count %}
+                            
+                            {% if total_count > 0 %}
+                                {% set buy_pct = (buy_count / total_count * 100)|int %}
+                                {% set hold_pct = (hold_count / total_count * 100)|int %}
+                                {% set sell_pct = (sell_count / total_count * 100)|int %}
+                                
+                                <div class="progress mb-3" style="height: 25px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ buy_pct }}%" 
+                                         aria-valuenow="{{ buy_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                        Buy {{ buy_pct }}%
+                                    </div>
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ hold_pct }}%" 
+                                         aria-valuenow="{{ hold_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                        Hold {{ hold_pct }}%
+                                    </div>
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ sell_pct }}%" 
+                                         aria-valuenow="{{ sell_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                        Sell {{ sell_pct }}%
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i> No market recommendation data available.
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> No market recommendation data available.
+                            </div>
+                        {% endif %}
+                        <div class="alert alert-primary">
+                            <i class="fas fa-robot me-2"></i> <strong>AI Recommendation:</strong> {{ result.our_recommendation }}
+                        </div>
+                        <div class="alert alert-secondary">
+                            <i class="fas fa-users me-2"></i> <strong>Analyst Consensus:</strong> {{ result.market_recommendation }}
+                        </div>
+                        <div class="alert alert-info small mt-3">
+                            <i class="fas fa-info-circle me-2"></i> <strong>Disclaimer:</strong> These recommendations are based on technical indicators and market data. They should not be considered as financial advice. Always conduct thorough research before making investment decisions.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- DCA Calculator Tab -->
+            <div class="tab-pane fade {% if active_tab == 'dca' %}show active{% endif %}" id="dca" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-5">
+                        <form method="POST" action="/" id="dcaForm">
+                            <input type="hidden" name="symbol" value="{{ result.symbol }}">
+                            <input type="hidden" name="start_date" value="{{ default_start_date }}">
+                            <input type="hidden" name="end_date" value="{{ default_end_date }}">
+                            <input type="hidden" name="action" value="calculate_dca">
+                            
+                            <div class="mb-3">
+                                <label for="initial_investment" class="form-label">Initial Investment ($)</label>
+                                <input type="number" class="form-control" id="initial_investment" name="initial_investment" value="1000" min="0" step="100">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="periodic_investment" class="form-label">Periodic Investment ($)</label>
+                                <input type="number" class="form-control" id="periodic_investment" name="periodic_investment" value="200" min="0" step="50">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="frequency" class="form-label">Frequency</label>
+                                <select class="form-select" id="frequency" name="frequency">
+                                    <option value="monthly" selected>Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                    <option value="annually">Annually</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="duration" class="form-label">Duration (years)</label>
+                                <input type="number" class="form-control" id="duration" name="duration" value="5" min="1" max="30">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">Calculate</button>
+                        </form>
+                        
+                        <div class="alert alert-info small mt-3">
+                            <i class="fas fa-info-circle me-2"></i> <strong>Disclaimer:</strong> The DCA calculator provides hypothetical results based on historical data. Past performance is not indicative of future results. These projections should not be considered as financial advice.
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-7">
+                        {% if dca_result %}
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="stat-card">
+                                        <div class="label">Total Invested</div>
+                                        <div class="value">${{ dca_result.total_invested }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="stat-card">
+                                        <div class="label">Future Value</div>
+                                        <div class="value">${{ dca_result.future_value }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="stat-card">
+                                        <div class="label">Total Profit</div>
+                                        <div class="value">${{ dca_result.total_profit }}</div>
+                                        <div class="trend positive">+{{ dca_result.expected_return }}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <canvas id="dcaChart"></canvas>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info h-100 d-flex align-items-center justify-content-center">
+                            <div class="text-center">
+                                <i class="fas fa-calculator fa-3x mb-3"></i>
+                                <p>Fill out the form and click Calculate to see your potential investment growth.</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fundamentals Tab -->
+            <div class="tab-pane fade" id="fundamentals" role="tabpanel">
+                {% if fundamentals %}
+                <div class="row">
+                    <div class="col-lg-6">
+                        <h5 class="mb-3">Key Statistics</h5>
+                        <table class="data-table">
+                            <tbody>
+                                <tr>
+                                    <td>Market Cap</td>
+                                    <td class="fw-bold">${{ fundamentals.market_cap }}</td>
+                                </tr>
+                                <tr>
+                                    <td>P/E Ratio</td>
+                                    <td class="fw-bold">{{ fundamentals.pe_ratio }}</td>
+                                </tr>
+                                <tr>
+                                    <td>EPS (TTM)</td>
+                                    <td class="fw-bold">${{ fundamentals.eps }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Dividend Yield</td>
+                                    <td class="fw-bold">{{ fundamentals.dividend_yield }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>52-Week High</td>
+                                    <td class="fw-bold">${{ fundamentals.week_52_high }}</td>
+                                </tr>
+                                <tr>
+                                    <td>52-Week Low</td>
+                                    <td class="fw-bold">${{ fundamentals.week_52_low }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-lg-6">
+                        <h5 class="mb-3">Financial Ratios</h5>
+                        <table class="data-table">
+                            <tbody>
+                                <tr>
+                                    <td>Return on Equity (ROE)</td>
+                                    <td class="fw-bold">{{ fundamentals.roe }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Return on Assets (ROA)</td>
+                                    <td class="fw-bold">{{ fundamentals.roa }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Profit Margin</td>
+                                    <td class="fw-bold">{{ fundamentals.profit_margin }}%</td>
+                                </tr>
+                                <tr>
+                                    <td>Debt to Equity</td>
+                                    <td class="fw-bold">{{ fundamentals.debt_to_equity }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Current Ratio</td>
+                                    <td class="fw-bold">{{ fundamentals.current_ratio }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Price to Book (P/B)</td>
+                                    <td class="fw-bold">{{ fundamentals.price_to_book }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> No fundamental data available for this stock.
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Earnings Tab -->
+            <div class="tab-pane fade" id="earnings" role="tabpanel">
+                {% if earnings and earnings|length > 0 %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Quarter</th>
+                                <th>Date</th>
+                                <th>EPS Estimate</th>
+                                <th>EPS Actual</th>
+                                <th>Surprise</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in earnings %}
+                            <tr>
+                                <td>{{ item.get('quarter', 'N/A') }}</td>
+                                <td>{{ item.get('date', 'N/A') }}</td>
+                                <td>${{ item.get('eps_estimate', 'N/A') }}</td>
+                                <td>${{ item.get('eps_actual', 'N/A') }}</td>
+                                {% if 'surprise' in item and item.surprise is not none %}
+                                    <td class="{% if item.surprise|float > 0 %}text-success{% elif item.surprise|float < 0 %}text-danger{% endif %}">
+                                        {{ item.surprise }}%
+                                    </td>
+                                {% else %}
+                                    <td>N/A</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> No earnings data available for this stock.
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- News Tab -->
+            <div class="tab-pane fade" id="news" role="tabpanel">
+                {% if news and news|length > 0 %}
+                <div class="row">
+                    {% for item in news %}
+                    <div class="col-lg-6">
+                        <div class="card mb-3">
+                            <div class="news-item">
+                                <h6 class="mb-2">{{ item.get('title', 'No Title') }}</h6>
+                                <div class="news-date mb-2">
+                                    <i class="far fa-calendar-alt me-1"></i> {{ item.get('published_date', item.get('publishedDate', 'N/A')) }} • 
+                                    <span class="fw-bold">{{ item.get('publisher', 'Unknown') }}</span>
+                                </div>
+                                {% if 'summary' in item and item.summary %}
+                                    <p class="mb-2">{{ item.summary[:150] }}{% if item.summary|length > 150 %}...{% endif %}</p>
+                                {% else %}
+                                    <p class="mb-2 text-muted">No summary available</p>
+                                {% endif %}
+                                <a href="{{ item.get('link', '#') }}" target="_blank" class="btn btn-sm btn-outline-primary">Read More</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> No news available for this stock.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Welcome section when no stock is loaded -->
+<div class="row">
+    <div class="col-lg-8 mx-auto text-center my-5">
+        <div class="display-4 mb-4"><i class="fas fa-chart-line text-primary"></i></div>
+        <h1 class="mb-4">Welcome to Investment Analysis Tool</h1>
+        <p class="lead mb-4">Enter a stock symbol above to analyze performance, calculate potential returns, and get the latest market insights.</p>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card h-100 mb-4">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="fas fa-chart-area fa-3x text-primary"></i>
+                        </div>
+                        <h5>Technical Analysis</h5>
+                        <p class="text-muted">Access key indicators like SMA, RSI and MACD to make informed decisions.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 mb-4">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="fas fa-calculator fa-3x text-primary"></i>
+                        </div>
+                        <h5>DCA Calculator</h5>
+                        <p class="text-muted">See how your investments might grow over time with dollar-cost averaging.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 mb-4">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="fas fa-newspaper fa-3x text-primary"></i>
+                        </div>
+                        <h5>Latest News</h5>
+                        <p class="text-muted">Stay updated with the latest news and events affecting your investments.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="alert alert-warning mt-4">
+            <h5><i class="fas fa-exclamation-triangle me-2"></i>Disclaimer</h5>
+            <p class="mb-0">The Investment Analysis Tool provides information for educational purposes only. None of the content constitutes financial advice or a recommendation to buy, sell, or hold any security. Always conduct your own research and consult with a qualified financial advisor before making investment decisions.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Initialize flatpickr for date fields
-  flatpickr("#start_date", {
-    dateFormat: "d/m/Y",
-    defaultDate: "{{ default_start_date }}"
-  });
-  flatpickr("#end_date", {
-    dateFormat: "d/m/Y",
-    defaultDate: "{{ default_end_date }}"
-  });
-</script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configure date pickers
+    const startDatePicker = flatpickr("#startDatePicker", {
+        dateFormat: "d/m/Y",
+        defaultDate: "{{ default_start_date }}",
+        maxDate: "today",
+        static: true,
+        appendTo: document.querySelector('.date-range-picker .dropdown-menu'),
+        onChange: function(selectedDates, dateStr) {
+            console.log("Start date changed:", dateStr);
+        }
+    });
+    
+    const endDatePicker = flatpickr("#endDatePicker", {
+        dateFormat: "d/m/Y",
+        defaultDate: "{{ default_end_date }}",
+        maxDate: "today",
+        static: true,
+        appendTo: document.querySelector('.date-range-picker .dropdown-menu'),
+        onChange: function(selectedDates, dateStr) {
+            console.log("End date changed:", dateStr);
+        }
+    });
+    
+    // Update hidden form inputs when date range is applied
+    document.getElementById('applyDateRange').addEventListener('click', function() {
+        document.getElementById('start_date').value = startDatePicker.input.value;
+        document.getElementById('end_date').value = endDatePicker.input.value;
+        
+        // Update the date range text
+        document.getElementById('dateRangeText').textContent = 
+            startDatePicker.input.value + ' - ' + endDatePicker.input.value;
+    });
+    
+    // Initially set the date range text
+    document.getElementById('dateRangeText').textContent = 
+        "{{ default_start_date }} - {{ default_end_date }}";
+    
+    {% if stock_chart_data and stock_chart_data.dates %}
+    // Stock price chart
+    const stockCtx = document.getElementById('stockChart').getContext('2d');
+    const stockChart = new Chart(stockCtx, {
+        type: 'line',
+        data: {
+            labels: {{ stock_chart_data.dates|tojson }},
+            datasets: [{
+                label: 'Close Price',
+                data: {{ stock_chart_data.close|tojson }},
+                borderColor: '#0066cc',
+                backgroundColor: 'rgba(0, 102, 204, 0.1)',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: true,
+                tension: 0.1,
+                yAxisID: 'price'
+            }, {
+                label: 'SMA (50)',
+                data: {{ stock_chart_data.sma50|tojson }},
+                borderColor: '#33cc99',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+                yAxisID: 'price'
+            }, {
+                label: 'SMA (200)',
+                data: {{ stock_chart_data.sma200|tojson }},
+                borderColor: '#ff6b6b',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+                yAxisID: 'price'
+            }, {
+                label: 'RSI',
+                data: {{ stock_chart_data.rsi|tojson }},
+                borderColor: '#ffc107',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+                hidden: true,
+                yAxisID: 'indicators'
+            }, {
+                label: 'MACD',
+                data: {{ stock_chart_data.macd|tojson }},
+                borderColor: '#6f42c1',
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false,
+                hidden: true,
+                yAxisID: 'indicators'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 6
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                },
+                annotation: {
+                    annotations: {
+                        overboughtLine: {
+                            type: 'line',
+                            yMin: 70,
+                            yMax: 70,
+                            borderColor: 'rgba(255, 107, 107, 0.5)',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            yScaleID: 'indicators'
+                        },
+                        oversoldLine: {
+                            type: 'line',
+                            yMin: 30,
+                            yMax: 30,
+                            borderColor: 'rgba(51, 204, 153, 0.5)',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            yScaleID: 'indicators'
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        maxTicksLimit: 10,
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                },
+                price: {
+                    type: 'linear',
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Price ($)'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                indicators: {
+                    type: 'linear',
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Indicators'
+                    },
+                    min: 0,
+                    max: 100,
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+    
+    {% if dca_chart_data and dca_chart_data.dates %}
+    // DCA calculator chart
+    const dcaCtx = document.getElementById('dcaChart').getContext('2d');
+    const dcaChart = new Chart(dcaCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ dca_chart_data.dates|tojson }},
+            datasets: [{
+                type: 'bar',
+                label: 'Amount Invested',
+                data: {{ dca_chart_data.invested|tojson }},
+                backgroundColor: 'rgba(0, 102, 204, 0.7)',
+                order: 2
+            }, {
+                type: 'line',
+                label: 'Portfolio Value',
+                data: {{ dca_chart_data.value|tojson }},
+                borderColor: '#33cc99',
+                backgroundColor: 'rgba(51, 204, 153, 0.1)',
+                borderWidth: 2,
+                pointRadius: 4,
+                fill: true,
+                tension: 0.1,
+                order: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('en-US', { 
+                                    style: 'currency', 
+                                    currency: 'USD',
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0
+                                }).format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
 
-<!-- Autocomplete logic for searching partial company names / tickers -->
-<script>
-  let timer = null;
-
-  function onSymbolInputChange() {
-    const query = document.getElementById('symbol_input').value.trim();
-    const suggestionsDiv = document.getElementById('suggestions');
-
-    // Clear old data
-    clearTimeout(timer);
-    suggestionsDiv.innerHTML = '';
-
-    if (query.length < 2) {
-      // Hide suggestions if < 2 chars
-      suggestionsDiv.style.display = 'none';
-      return;
-    }
-
-    // Debounce - only search after 300ms
-    timer = setTimeout(() => {
-      fetch('/search_tickers?query=' + encodeURIComponent(query))
-        .then(resp => resp.json())
-        .then(data => {
-          if (!data || data.length === 0) {
-            suggestionsDiv.innerHTML = '<div class="dropdown-item text-muted">No matches</div>';
-          } else {
-            let html = '';
-            data.forEach(item => {
-              const displayedName = item.shortname || item.longname || item.symbol;
-              html += `
-                <button type="button" class="dropdown-item" 
-                        onclick="selectSymbol('${item.symbol}', '${displayedName}')">
-                  <strong>${item.symbol}</strong> – ${displayedName}
-                </button>
-              `;
-            });
-            suggestionsDiv.innerHTML = html;
-          }
-          // Show it
-          suggestionsDiv.style.display = 'block';
-        })
-        .catch(err => {
-          console.error(err);
-          suggestionsDiv.innerHTML = '<div class="dropdown-item text-danger">Error fetching results</div>';
-          suggestionsDiv.style.display = 'block';
+    // Chart period buttons
+    const periodButtons = document.querySelectorAll('[data-period]');
+    periodButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            periodButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Get the selected period
+            const period = this.dataset.period;
+            
+            // Calculate the start date based on the selected period
+            let startDate = new Date();
+            const endDate = new Date(); // Current date
+            
+            // Set the start date based on period
+            switch(period) {
+                case '1m':
+                    startDate.setMonth(startDate.getMonth() - 1);
+                    break;
+                case '3m':
+                    startDate.setMonth(startDate.getMonth() - 3);
+                    break;
+                case '6m':
+                    startDate.setMonth(startDate.getMonth() - 6);
+                    break;
+                case '1y':
+                    startDate.setFullYear(startDate.getFullYear() - 1);
+                    break;
+                case '5y':
+                    startDate.setFullYear(startDate.getFullYear() - 5);
+                    break;
+            }
+            
+            // Format dates as DD/MM/YYYY for Flask (since that's what the app.py expects)
+            const formatDate = (date) => {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            };
+            
+            // Log the dates (for debugging)
+            console.log(`Period: ${period}, Start: ${formatDate(startDate)}, End: ${formatDate(endDate)}`);
+            
+            // Update the date fields
+            document.getElementById('start_date').value = formatDate(startDate);
+            document.getElementById('end_date').value = formatDate(endDate);
+            
+            // Get the current symbol value
+            const symbol = document.getElementById('symbol').value;
+            
+            // Only submit if we have a valid symbol
+            if (symbol && symbol.trim() !== '') {
+                // Submit the form
+                document.getElementById('stockForm').submit();
+            } else {
+                console.error('Cannot submit form: No symbol provided');
+            }
         });
-    }, 300);
-  }
+    });
 
-  function selectSymbol(sym, displayName) {
-    // Set hidden input's value
-    document.getElementById('symbol').value = sym;
-    // Also show the chosen name in the text box
-    document.getElementById('symbol_input').value = displayName;
-    // Hide suggestions
-    document.getElementById('suggestions').innerHTML = '';
-    document.getElementById('suggestions').style.display = 'none';
-  }
-</script>
-
-{% if stock_chart_data.dates and (stock_chart_data.dates|length) > 0 %}
-<script>
-  var ctxTech = document.getElementById('techChart').getContext('2d');
-  var techChart = new Chart(ctxTech, {
-    type: 'line',
-    data: {
-      labels: {{ stock_chart_data.dates | tojson }},
-      datasets: [
-        {
-          label: 'Close Price',
-          data: {{ stock_chart_data.close | tojson }},
-          borderColor: 'rgba(0,82,204,1)',
-          backgroundColor: 'rgba(0,82,204,0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          yAxisID: 'y'
-        },
-        {
-          label: '50-day SMA',
-          data: {{ stock_chart_data.sma50 | tojson }},
-          borderColor: 'rgba(255,193,7,1)',
-          backgroundColor: 'rgba(255,193,7,0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          yAxisID: 'y'
-        },
-        {
-          label: '200-day SMA',
-          data: {{ stock_chart_data.sma200 | tojson }},
-          borderColor: 'rgba(40,167,69,1)',
-          backgroundColor: 'rgba(40,167,69,0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          yAxisID: 'y'
-        },
-        {
-          label: 'MACD',
-          data: {{ stock_chart_data.macd | tojson }},
-          borderColor: 'rgba(220,53,69,1)',
-          backgroundColor: 'rgba(220,53,69,0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          yAxisID: 'y1'
-        },
-        {
-          label: 'RSI',
-          data: {{ stock_chart_data.rsi | tojson }},
-          borderColor: 'rgba(153,102,255,1)',
-          backgroundColor: 'rgba(153,102,255,0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          tension: 0.3,
-          yAxisID: 'y1'
+    // Handle search results positioning
+    function positionSearchResults() {
+        const input = document.getElementById('symbol');
+        const searchContainer = document.querySelector('.stock-search-container');
+        const dropdown = document.querySelector('.stock-search-results');
+        
+        if (input && dropdown && searchContainer) {
+            const rect = input.getBoundingClientRect();
+            const containerRect = searchContainer.getBoundingClientRect();
+            
+            // Position the dropdown
+            dropdown.style.position = 'absolute';
+            dropdown.style.top = (input.offsetHeight + 2) + 'px';
+            dropdown.style.left = '0';
+            dropdown.style.width = (rect.width - 2) + 'px';
+            dropdown.style.zIndex = '99999';
+            
+            // Make sure search results are visible
+            dropdown.style.backgroundColor = 'white';
+            dropdown.style.border = '1px solid rgba(0, 0, 0, 0.15)';
+            dropdown.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.175)';
         }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: 'top' },
-        title: {
-          display: true,
-          text: 'Technical Indicators Chart',
-          font: { size: 18, weight: '600' }
-        },
-        tooltip: { mode: 'index', intersect: false }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: 'Date', font: { weight: '500' } },
-          grid: { display: false }
-        },
-        y: {
-          title: { display: true, text: 'Price ($)', font: { weight: '500' } },
-          grid: { color: '#e0e0e0' }
-        },
-        y1: {
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          ticks: { callback: function(value){ return value; } }
-        }
-      }
     }
-  });
-</script>
-{% endif %}
-
-{% if dca_chart_data.dates and (dca_chart_data.dates|length) > 0 %}
-<script>
-  var ctxDCA = document.getElementById('dcaChart').getContext('2d');
-  var invested = {{ dca_chart_data.invested | tojson }};
-  var valueData = {{ dca_chart_data.value | tojson }};
-  var allValues = invested.concat(valueData);
-  var minY = Math.min(...allValues) * 0.95;
-  var maxY = Math.max(...allValues) * 1.05;
-
-  var dcaChart = new Chart(ctxDCA, {
-    type: 'line',
-    data: {
-      labels: {{ dca_chart_data.dates | tojson }},
-      datasets: [
-        {
-          label: 'Total Invested',
-          data: invested,
-          borderColor: 'rgba(40,167,69,1)',
-          backgroundColor: 'rgba(40,167,69,0.1)',
-          borderWidth: 2,
-          pointRadius: 3,
-          tension: 0.3
-        },
-        {
-          label: 'Portfolio Value',
-          data: valueData,
-          borderColor: 'rgba(220,53,69,1)',
-          backgroundColor: 'rgba(220,53,69,0.1)',
-          borderWidth: 2,
-          pointRadius: 3,
-          tension: 0.3
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: true, position: 'top' },
-        title: {
-          display: true,
-          text: 'DCA Investment Simulation',
-          font: { size: 18, weight: '600' }
-        },
-        tooltip: { mode: 'index', intersect: false }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: 'Date', font: { weight: '500' } },
-          grid: { display: false }
-        },
-        y: {
-          title: { display: true, text: 'Amount ($)', font: { weight: '500' } },
-          grid: { color: '#e0e0e0' },
-          min: minY,
-          max: maxY
-        }
-      }
+    
+    // Watch for search results becoming visible
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length) {
+                for (let i = 0; i < mutation.addedNodes.length; i++) {
+                    const node = mutation.addedNodes[i];
+                    if (node.classList && node.classList.contains('stock-search-results')) {
+                        positionSearchResults();
+                    }
+                }
+            }
+        });
+    });
+    
+    // Observe the search container for changes
+    const searchContainer = document.querySelector('.stock-search-container');
+    if (searchContainer) {
+        observer.observe(searchContainer, { childList: true, subtree: true });
     }
-  });
-</script>
-{% endif %}
+    
+    // Also position on window resize
+    window.addEventListener('resize', positionSearchResults);
 
-<script>
-  // Activate the appropriate tab based on active_tab variable
-  var activeTab = "{{ active_tab }}";
-  if (activeTab === "dca") {
-    var dcaTabTrigger = document.querySelector('#dca-tab');
-    var tabInstance = new bootstrap.Tab(dcaTabTrigger);
-    tabInstance.show();
-  }
+    // Search dropdown positioning fix
+    setTimeout(() => {
+        const searchContainer = document.querySelector('.stock-search-container');
+        if (searchContainer) {
+            // Make sure the container has position relative
+            searchContainer.style.position = 'relative';
+        }
+    }, 100);
+});
 </script>
 {% endblock %}

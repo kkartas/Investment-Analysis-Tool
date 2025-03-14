@@ -1,6 +1,6 @@
 # app.py
 
-from flask import Flask, render_template, request, flash, jsonify
+from flask import Flask, render_template, request, flash, jsonify, redirect, url_for
 import yfinance as yf
 from datetime import datetime, timedelta
 import math
@@ -54,6 +54,47 @@ def search_tickers_route():
     return jsonify(results)
 
 
+@app.route('/period')
+def period():
+    """
+    Handle period links for chart time periods (1m, 3m, 6m, 1y, 5y)
+    """
+    symbol = request.args.get('symbol')
+    period = request.args.get('period', '1m')  # Default to 1m if not specified
+    
+    if not symbol:
+        flash('No symbol provided', 'danger')
+        return redirect('/')
+        
+    # Calculate start and end dates based on period
+    end_date = datetime.today()
+    
+    if period == '1m':
+        start_date = end_date - timedelta(days=30)
+    elif period == '3m':
+        start_date = end_date - timedelta(days=90)
+    elif period == '6m':
+        start_date = end_date - timedelta(days=180)
+    elif period == '1y':
+        start_date = end_date - timedelta(days=365)
+    elif period == '5y':
+        start_date = end_date - timedelta(days=1825)
+    else:
+        start_date = end_date - timedelta(days=730)  # Default to 2 years
+    
+    # Format dates as dd/mm/yyyy
+    start_date_str = start_date.strftime('%d/%m/%Y')
+    end_date_str = end_date.strftime('%d/%m/%Y')
+    
+    # Redirect to main route with parameters
+    return redirect(url_for('index', 
+                           symbol=symbol, 
+                           start_date=start_date_str, 
+                           end_date=end_date_str, 
+                           period=period,
+                           action='load_stock'))
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     # Variables for the template
@@ -61,27 +102,34 @@ def index():
     dca_result = {}
     fundamentals_data = {}
     news_data = []
-    # ### NEW EARNINGS CODE ###
     earnings_data = []  # we'll fill it with get_earnings
     error = None
     stock_chart_data = {}
     dca_chart_data = {}
     active_tab = 'stock-data'  # default
+    period = request.args.get('period', '1y')  # Default to 1y instead of 1m
 
-    # Default date range: 2 years
+    # Default date range: 1 year (instead of 2 years)
     default_end_date_dt = datetime.today()
-    default_start_date_dt = default_end_date_dt - timedelta(days=730)
+    default_start_date_dt = default_end_date_dt - timedelta(days=365)  # 1 year instead of 730 days
     default_end_date = default_end_date_dt.strftime('%d/%m/%Y')
     default_start_date = default_start_date_dt.strftime('%d/%m/%Y')
 
-    start_date_input = default_start_date
-    end_date_input = default_end_date
+    # Initialize dates from request parameters or defaults
+    start_date_input = request.args.get('start_date') or default_start_date
+    end_date_input = request.args.get('end_date') or default_end_date
 
-    if request.method == 'POST':
-        action = request.form.get("action")  # "load_stock" or "calculate_dca"
-        symbol = request.form.get('symbol', '').strip()
-        start_date_input = request.form.get('start_date') or default_start_date
-        end_date_input = request.form.get('end_date') or default_end_date
+    # Handle both GET and POST for loading stock data
+    if request.method == 'POST' or (request.method == 'GET' and request.args.get('symbol')):
+        # For GET requests from period links
+        if request.method == 'GET':
+            action = request.args.get('action')
+            symbol = request.args.get('symbol', '').strip()
+        else:  # POST method
+            action = request.form.get("action")
+            symbol = request.form.get('symbol', '').strip()
+            start_date_input = request.form.get('start_date') or start_date_input
+            end_date_input = request.form.get('end_date') or end_date_input
 
         # Parse dates
         try:
@@ -94,7 +142,8 @@ def index():
                 error=error,
                 default_start_date=start_date_input,
                 default_end_date=end_date_input,
-                active_tab=active_tab
+                active_tab=active_tab,
+                period=period
             )
 
         if not symbol:
@@ -136,6 +185,23 @@ def index():
                         latest_data = data.iloc[-1]
                         # Market recommendation
                         market_label, market_counts = get_market_recommendation(ticker)
+                        
+                        # Convert market_counts to lowercase keys for consistent access in template
+                        standardized_market_counts = {}
+                        if market_counts:
+                            for key, value in market_counts.items():
+                                # Map the case-sensitive keys to lowercase
+                                if key.lower() in ['strong buy', 'buy']:
+                                    standardized_market_counts['buy'] = standardized_market_counts.get('buy', 0) + value
+                                elif key.lower() == 'hold':
+                                    standardized_market_counts['hold'] = value
+                                elif key.lower() in ['sell', 'strong sell']:
+                                    standardized_market_counts['sell'] = standardized_market_counts.get('sell', 0) + value
+                            
+                            # Ensure all required keys exist
+                            for key in ['buy', 'hold', 'sell']:
+                                if key not in standardized_market_counts:
+                                    standardized_market_counts[key] = 0
 
                         result = {
                             'symbol': symbol,
@@ -147,7 +213,7 @@ def index():
                             'Signal_Line': safe_str(latest_data.get('Signal_Line', float('nan'))),
                             'our_recommendation': our_rec,
                             'market_recommendation': market_label,
-                            'market_recommendation_counts': market_counts
+                            'market_recommendation_counts': standardized_market_counts
                         }
 
                     # DCA handling
@@ -215,14 +281,43 @@ def index():
                     # ### NEW EARNINGS CODE ###
                     # Instead of old approach, call get_earnings from models/earnings.py
                     try:
-                        earnings_data = get_earnings(symbol)  # returns a list of dicts
+                        raw_earnings_data = get_earnings(symbol)  # returns a list of dicts
+                        
+                        # Standardize earnings data structure for the template
+                        earnings_data = []
+                        for item in raw_earnings_data:
+                            # Create a standardized earnings item with default values
+                            standardized_item = {
+                                'quarter': item.get('period', 'N/A'),
+                                'date': item.get('date', item.get('period', 'N/A')),
+                                'eps_estimate': item.get('eps_estimate', 'N/A'),
+                                'eps_actual': item.get('eps_actual', 'N/A'),
+                                'surprise': item.get('surprise', 'N/A')
+                            }
+                            earnings_data.append(standardized_item)
+                            
                     except Exception as e:
                         print("Error fetching new earnings:", e)
                         earnings_data = []
 
                     # News
                     try:
-                        news_data = get_news_by_search(symbol, news_count=8)
+                        raw_news_data = get_news_by_search(symbol, news_count=8)
+                        
+                        # Standardize news data structure for the template
+                        news_data = []
+                        for item in raw_news_data:
+                            # Create a standardized news item with default values
+                            standardized_item = {
+                                'title': item.get('title', 'No Title'),
+                                'publisher': item.get('publisher', 'Unknown'),
+                                'published_date': item.get('publishedDate', item.get('published_date', 'N/A')),
+                                'link': item.get('link', '#'),
+                                # Summary might not exist in all news items
+                                'summary': item.get('summary', '')
+                            }
+                            news_data.append(standardized_item)
+                            
                     except Exception as e:
                         print("News fetch exception:", e)
                         news_data = []
@@ -239,7 +334,8 @@ def index():
         default_end_date=end_date_input,
         stock_chart_data=stock_chart_data,
         dca_chart_data=dca_chart_data,
-        active_tab=active_tab
+        active_tab=active_tab,
+        period=period
     )
 
 
