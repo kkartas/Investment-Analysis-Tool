@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+  <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Investment Analysis Tool - Stock Market Analysis Platform</title>
@@ -22,21 +22,19 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
     <link rel="mask-icon" href="{{ url_for('static', filename='icons/safari-pinned-tab.svg') }}" color="#0066cc">
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+
     <!-- iOS Splash Screens -->
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphone5_splash.png') }}" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphone6_splash.png') }}" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphoneplus_splash.png') }}" media="(device-width: 621px) and (device-height: 1104px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphonex_splash.png') }}" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphonexr_splash.png') }}" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphonexsmax_splash.png') }}" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipad_splash.png') }}" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipadpro1_splash.png') }}" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipadpro2_splash.png') }}" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipadpro3_splash.png') }}" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-2048-2732.jpg') }}" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-1668-2388.jpg') }}" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-1536-2048.jpg') }}" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-1242-2688.jpg') }}" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-1125-2436.jpg') }}" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-828-1792.jpg') }}" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-750-1334.jpg') }}" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/apple-splash-640-1136.jpg') }}" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,39 +55,11 @@
     {% block head %}{% endblock %}
 </head>
 <body>
-    <header class="main-header bg-gradient">
-        <nav class="navbar navbar-expand-lg navbar-dark">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center" href="/">
-                    <i class="fas fa-chart-line me-2"></i>
-                    <span>Investment Analysis Tool</span>
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarMain">
-                    <ul class="navbar-nav ms-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" href="#"><i class="fas fa-home me-1"></i> Dashboard</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#"><i class="fas fa-chart-pie me-1"></i> Portfolio</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#"><i class="fas fa-search-dollar me-1"></i> Explore</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#"><i class="fas fa-cog me-1"></i> Settings</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-
-    <main class="container py-4">
-        {% block content %}{% endblock %}
-    </main>
+    <div class="content-wrapper">
+        <div class="container py-4">
+            {% block content %}{% endblock %}
+      </div>
+    </div>
 
     <footer class="footer mt-auto py-3 bg-light">
         <div class="container text-center">
@@ -154,41 +124,77 @@
         installButton.style.display = 'none';
         installButton.className = 'btn btn-sm btn-primary pwa-install-btn';
         installButton.innerHTML = '<i class="fas fa-download"></i> Install App';
+
+        // Create a container for the install button
+        const installContainer = document.createElement('div');
+        installContainer.className = 'install-container';
+        installContainer.style.position = 'fixed';
+        installContainer.style.bottom = '20px';
+        installContainer.style.right = '20px';
+        installContainer.style.zIndex = '1000';
+        installContainer.appendChild(installButton);
+        document.body.appendChild(installContainer);
         
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent the mini-infobar from appearing on mobile
-            e.preventDefault();
-            // Store the event so it can be triggered later
+            console.log('beforeinstallprompt event fired');
+            // Store the event for later use
             deferredPrompt = e;
-            // Update UI to notify the user they can install the PWA
+            // Show the install button
             installButton.style.display = 'block';
             
-            // Append the install button to the header
-            const headerNav = document.querySelector('header .navbar .container');
-            if (headerNav) {
-                headerNav.appendChild(installButton);
-            }
+            // Optional: Show a custom install banner
+            const installBanner = document.createElement('div');
+            installBanner.className = 'install-banner';
+            installBanner.innerHTML = `
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <strong>Install App!</strong> Add this app to your home screen for the best experience.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+            `;
+            document.body.prepend(installBanner);
         });
         
         installButton.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            // Show the install prompt
-            deferredPrompt.prompt();
-            // Wait for the user to respond to the prompt
-            const { outcome } = await deferredPrompt.userChoice;
-            // We've used the prompt, and can't use it again, throw it away
-            deferredPrompt = null;
-            // Hide the install button
-            installButton.style.display = 'none';
+            console.log('Install button clicked');
+            if (!deferredPrompt) {
+                console.log('No installation prompt available');
+                return;
+            }
+            
+            try {
+                // Show the install prompt
+                const result = await deferredPrompt.prompt();
+                console.log('Install prompt shown');
+                
+                // Wait for the user to respond to the prompt
+                const choiceResult = await deferredPrompt.userChoice;
+                console.log('User choice:', choiceResult.outcome);
+                
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                } else {
+                    console.log('User dismissed the install prompt');
+                }
+                
+                // Clear the deferredPrompt
+                deferredPrompt = null;
+                // Hide the install button
+                installButton.style.display = 'none';
+            } catch (error) {
+                console.error('Error showing install prompt:', error);
+            }
         });
         
-        window.addEventListener('appinstalled', () => {
-            // Hide the install button
+        window.addEventListener('appinstalled', (event) => {
+            console.log('App was installed');
+            // Hide the install button and any install banners
             installButton.style.display = 'none';
+            const installBanner = document.querySelector('.install-banner');
+            if (installBanner) {
+                installBanner.remove();
+            }
             // Clear the deferredPrompt
             deferredPrompt = null;
-            // Log the installation
-            console.log('PWA was installed');
         });
     </script>
     
@@ -207,8 +213,20 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         
+        .install-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 10px;
+        }
+        
         .pwa-install-btn {
-            margin-left: 10px;
+            padding: 10px 20px;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
         }
         
         /* Apply different styles when offline */
@@ -218,20 +236,102 @@
         }
         
         @media (display-mode: standalone) {
-            /* Styles for when the app is installed and running as a PWA */
-            body {
-                overscroll-behavior-y: none; /* Prevents pull-to-refresh and overscroll glow */
-                -webkit-touch-callout: none; /* Disable callouts */
-                -webkit-user-select: none; /* Disable selection */
-                -khtml-user-select: none;
-                -moz-user-select: none;
-                -ms-user-select: none;
-                user-select: none;
+            /* Hide install prompts when already installed */
+            .install-container,
+            .install-banner {
+                display: none !important;
+            }
+        }
+        
+        /* Mobile-specific install button positioning */
+        @media (max-width: 768px) {
+            .install-container {
+                bottom: 70px !important; /* Ensure it's above any bottom navigation */
             }
             
-            /* Hide browser UI elements when in standalone mode */
-            .browser-ui-only {
-                display: none !important;
+            .install-banner {
+                padding: 5px;
+            }
+            
+            .pwa-install-btn {
+                padding: 8px 16px;
+            }
+        }
+        
+        /* Fix mobile scrolling */
+        html, body {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .content-wrapper {
+            flex: 1 0 auto;
+            width: 100%;
+            overflow-x: hidden;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Chart container responsive height */
+        .chart-container {
+            position: relative;
+            height: 50vh !important;
+            min-height: 300px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        
+        /* Card and container fixes */
+        .card {
+            overflow: visible;
+            margin-bottom: 1rem;
+        }
+        
+        .container {
+            overflow: visible;
+        }
+        
+        /* Fix for mobile tables */
+        .table-responsive {
+            -webkit-overflow-scrolling: touch;
+            overflow-y: visible;
+        }
+        
+        /* Ensure dropdowns don't break scrolling */
+        .dropdown-menu {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 40vh !important;
+                min-height: 250px;
+            }
+            
+            /* Improve touch scrolling on mobile */
+            .content-wrapper {
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Ensure proper spacing on mobile */
+            .card {
+                margin-bottom: 1rem;
+            }
+            
+            /* Fix chart positioning on mobile */
+            canvas {
+                max-height: 40vh;
             }
         }
         
@@ -257,7 +357,7 @@
             color: #0d6efd;
         }
     </style>
-    
-    {% block scripts %}{% endblock %}
+
+  {% block scripts %}{% endblock %}
 </body>
 </html>
