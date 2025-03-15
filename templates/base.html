@@ -2,18 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Investment Analysis Tool - Stock Market Analysis Platform</title>
     <meta name="description" content="Modern investment analysis platform with real-time data and advanced analytics">
     <meta name="theme-color" content="#0066cc">
     
+    <!-- Mobile Web App Capable Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="IAT">
+    <meta name="application-name" content="Investment Analysis Tool">
+    <meta name="msapplication-TileColor" content="#0066cc">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="format-detection" content="telephone=no">
+    
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    <link rel="mask-icon" href="{{ url_for('static', filename='icons/safari-pinned-tab.svg') }}" color="#0066cc">
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- iOS Splash Screens -->
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphone5_splash.png') }}" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphone6_splash.png') }}" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphoneplus_splash.png') }}" media="(device-width: 621px) and (device-height: 1104px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphonex_splash.png') }}" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphonexr_splash.png') }}" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/iphonexsmax_splash.png') }}" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipad_splash.png') }}" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipadpro1_splash.png') }}" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipadpro2_splash.png') }}" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='splashscreens/ipadpro3_splash.png') }}" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,12 +104,137 @@
     
     <!-- Service Worker Registration -->
     <script>
+        // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/sw.js')
-                .then(reg => console.log('Service Worker registered'))
-                .catch(err => console.log('Service Worker not registered', err));
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered successfully with scope:', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New version available
+                                    if (confirm('New version available! Reload to update?')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+
+            // Handle offline status
+            window.addEventListener('online', () => {
+                document.body.classList.remove('offline-mode');
+                const offlineNote = document.getElementById('offline-notification');
+                if (offlineNote) offlineNote.style.display = 'none';
+            });
+            
+            window.addEventListener('offline', () => {
+                document.body.classList.add('offline-mode');
+                let offlineNote = document.getElementById('offline-notification');
+                if (!offlineNote) {
+                    offlineNote = document.createElement('div');
+                    offlineNote.id = 'offline-notification';
+                    offlineNote.className = 'offline-alert';
+                    offlineNote.innerHTML = '<i class="fas fa-wifi"></i> You are offline. Some features may be limited.';
+                    document.body.prepend(offlineNote);
+                }
+                offlineNote.style.display = 'block';
+            });
         }
+
+        // Handle PWA install prompt
+        let deferredPrompt;
+        const installButton = document.createElement('button');
+        installButton.style.display = 'none';
+        installButton.className = 'btn btn-sm btn-primary pwa-install-btn';
+        installButton.innerHTML = '<i class="fas fa-download"></i> Install App';
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Store the event so it can be triggered later
+            deferredPrompt = e;
+            // Update UI to notify the user they can install the PWA
+            installButton.style.display = 'block';
+            
+            // Append the install button to the header
+            const headerNav = document.querySelector('header .navbar .container');
+            if (headerNav) {
+                headerNav.appendChild(installButton);
+            }
+        });
+        
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            // Show the install prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            // We've used the prompt, and can't use it again, throw it away
+            deferredPrompt = null;
+            // Hide the install button
+            installButton.style.display = 'none';
+        });
+        
+        window.addEventListener('appinstalled', () => {
+            // Hide the install button
+            installButton.style.display = 'none';
+            // Clear the deferredPrompt
+            deferredPrompt = null;
+            // Log the installation
+            console.log('PWA was installed');
+        });
     </script>
+    
+    <style>
+        /* PWA specific styles */
+        .offline-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #f8d7da;
+            color: #721c24;
+            text-align: center;
+            padding: 10px;
+            z-index: 9999;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .pwa-install-btn {
+            margin-left: 10px;
+        }
+        
+        /* Apply different styles when offline */
+        body.offline-mode .network-dependent {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        @media (display-mode: standalone) {
+            /* Styles for when the app is installed and running as a PWA */
+            body {
+                overscroll-behavior-y: none; /* Prevents pull-to-refresh and overscroll glow */
+                -webkit-touch-callout: none; /* Disable callouts */
+                -webkit-user-select: none; /* Disable selection */
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+            
+            /* Hide browser UI elements when in standalone mode */
+            .browser-ui-only {
+                display: none !important;
+            }
+        }
+    </style>
     
     {% block scripts %}{% endblock %}
 </body>

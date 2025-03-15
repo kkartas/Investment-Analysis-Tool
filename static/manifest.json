@@ -2,30 +2,107 @@
   "name": "Investment Analysis Tool",
   "short_name": "IAT",
   "description": "Modern investment analysis platform with real-time data and advanced analytics",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#0066cc",
+  "categories": ["finance", "investment", "business"],
+  "dir": "ltr",
+  "lang": "en-US",
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "scope": "/",
   "icons": [
+    {
+      "src": "/static/icons/app_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/static/icons/favicon.svg",
       "sizes": "64x64",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
       "src": "/static/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/static/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/static/icons/apple-touch-icon.png",
       "sizes": "180x180",
       "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/screenshots/screen1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Investment Analysis Dashboard"
+    },
+    {
+      "src": "/static/screenshots/screen2.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Stock Technical Analysis"
+    },
+    {
+      "src": "/static/screenshots/mobile1.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Mobile Dashboard View"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Search Stocks",
+      "url": "/?action=search",
+      "description": "Search for stock symbols",
+      "icons": [
+        {
+          "src": "/static/icons/search-shortcut.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "DCA Calculator",
+      "url": "/?active_tab=dca",
+      "description": "Dollar Cost Averaging Calculator",
+      "icons": [
+        {
+          "src": "/static/icons/calc-shortcut.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

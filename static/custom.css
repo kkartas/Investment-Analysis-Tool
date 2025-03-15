@@ -2,7 +2,7 @@
 
 /* Fix header background and text visibility */
 .main-header {
-    background: linear-gradient(to right, #0052a7, #1a73e8) !important;
+    background: #0066cc !important; /* Solid blue color for mobile status bar matching */
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     margin-bottom: 1rem;
 }
@@ -320,4 +320,130 @@ input:-webkit-autofill:focus {
 
 .dark-mode .stock-search-item:hover {
     background-color: #3a3a3a;
+}
+
+/* Add mobile-specific PWA enhancements at the end of the file */
+
+/* PWA and Mobile Specific Enhancements */
+@media (max-width: 768px) {
+    /* Adjust spacing for mobile */
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    /* Make buttons more tappable */
+    .btn, button, .nav-link, a {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Improve form field touch targets */
+    input, select, textarea {
+        font-size: 16px !important; /* Prevents iOS zoom on focus */
+        height: 44px;
+    }
+    
+    /* Fix navbar for mobile */
+    .navbar-brand {
+        padding: 10px 0;
+    }
+    
+    /* Adjust card layout */
+    .card {
+        margin-bottom: 15px;
+    }
+    
+    /* Stack columns for better mobile view */
+    .row [class*="col-"] {
+        margin-bottom: 15px;
+    }
+    
+    /* Make tables responsive */
+    .table-responsive {
+        border: 0;
+    }
+    
+    /* Ensure charts are visible */
+    .chart-container {
+        height: 250px;
+    }
+}
+
+/* Standalone PWA mode specific styles */
+@media (display-mode: standalone) {
+    /* Add safe area insets for notched phones */
+    body {
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    
+    /* Adjust header for notches */
+    .main-header {
+        padding-top: env(safe-area-inset-top);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+    
+    /* Add bottom spacing for home indicator on iPhone X+ */
+    footer {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+    
+    /* Remove browser-specific UI elements */
+    .browser-only {
+        display: none !important;
+    }
+    
+    /* Hardware acceleration for smoother scrolling */
+    .chart-container, .card, .table-responsive {
+        -webkit-overflow-scrolling: touch;
+        transform: translateZ(0);
+    }
+}
+
+/* Fix status bar on iOS */
+@supports (-webkit-touch-callout: none) {
+    /* iOS specific styles */
+    .main-header {
+        padding-top: max(20px, env(safe-area-inset-top));
+    }
+    
+    html {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* Dark mode support for OS-level dark mode preference */
+@media (prefers-color-scheme: dark) {
+    body.auto-dark-mode {
+        background-color: #121212;
+        color: #f1f1f1;
+    }
+    
+    body.auto-dark-mode .card,
+    body.auto-dark-mode .main-header,
+    body.auto-dark-mode footer {
+        background-color: #1e1e1e !important;
+        color: #f1f1f1;
+    }
+    
+    body.auto-dark-mode .card {
+        border-color: #333;
+    }
+    
+    body.auto-dark-mode .text-muted {
+        color: #aaa !important;
+    }
+    
+    body.auto-dark-mode .form-control {
+        background-color: #2a2a2a;
+        border-color: #444;
+        color: #f1f1f1 !important;
+    }
 } 
