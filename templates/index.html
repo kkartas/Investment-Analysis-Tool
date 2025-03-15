@@ -845,6 +845,11 @@ document.addEventListener('DOMContentLoaded', function() {
     {% if stock_chart_data and stock_chart_data.dates %}
     // Stock price chart
     const stockCtx = document.getElementById('stockChart').getContext('2d');
+    
+    // Function to check if the screen is small (mobile)
+    const isSmallScreen = () => window.innerWidth < 768;
+    
+    // Create responsive chart configuration
     const stockChart = new Chart(stockCtx, {
         type: 'line',
         data: {
@@ -907,12 +912,56 @@ document.addEventListener('DOMContentLoaded', function() {
                     position: 'top',
                     labels: {
                         usePointStyle: true,
-                        boxWidth: 6
+                        boxWidth: 6,
+                        // Smaller font on mobile
+                        font: {
+                            size: isSmallScreen() ? 8 : 12
+                        }
+                    },
+                    // Limit visible items on small screens
+                    onClick: function(e, legendItem, legend) {
+                        // If we're on a small screen, limit to 2 visible datasets
+                        if (isSmallScreen()) {
+                            const index = legendItem.datasetIndex;
+                            const meta = this.chart.getDatasetMeta(index);
+                            
+                            // Toggle the clicked dataset
+                            meta.hidden = meta.hidden === null ? !legend.chart.data.datasets[index].hidden : null;
+                            
+                            // Count how many datasets would be visible after this click
+                            let visibleCount = 0;
+                            for (let i = 0; i < legend.chart.data.datasets.length; i++) {
+                                const curr = legend.chart.getDatasetMeta(i);
+                                if (!curr.hidden) visibleCount++;
+                            }
+                            
+                            // If more than 2 datasets would be visible, hide others
+                            if (visibleCount > 2) {
+                                for (let i = 0; i < legend.chart.data.datasets.length; i++) {
+                                    if (i !== index) {
+                                        legend.chart.getDatasetMeta(i).hidden = true;
+                                    }
+                                }
+                            }
+                            
+                            legend.chart.update();
+                        } else {
+                            // Default behavior on larger screens
+                            Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+                        }
                     }
                 },
                 tooltip: {
                     mode: 'index',
-                    intersect: false
+                    intersect: false,
+                    // Responsive tooltip styling
+                    titleFont: {
+                        size: isSmallScreen() ? 10 : 14
+                    },
+                    bodyFont: {
+                        size: isSmallScreen() ? 9 : 12
+                    },
+                    padding: isSmallScreen() ? 6 : 10
                 },
                 annotation: {
                     annotations: {
@@ -940,41 +989,93 @@ document.addEventListener('DOMContentLoaded', function() {
             scales: {
                 x: {
                     ticks: {
-                        maxTicksLimit: 10,
+                        // Adaptive tick display based on screen size
+                        maxTicksLimit: isSmallScreen() ? 5 : 10,
+                        // Hide ticks completely on very small screens
+                        display: window.innerWidth < 480 ? false : true,
                         font: {
-                            size: 10
+                            size: isSmallScreen() ? 8 : 10
                         }
                     },
                     grid: {
                         display: false
+                    },
+                    // Hide the axis line on small screens
+                    border: {
+                        display: !isSmallScreen()
                     }
                 },
                 price: {
                     type: 'linear',
                     position: 'left',
                     title: {
-                        display: true,
+                        display: !isSmallScreen(),  // Hide title on small screens
                         text: 'Price ($)'
                     },
+                    ticks: {
+                        // Hide most ticks on small screens
+                        maxTicksLimit: isSmallScreen() ? 4 : 8,
+                        font: {
+                            size: isSmallScreen() ? 8 : 10
+                        },
+                        // Shorter price format on mobile
+                        callback: function(value, index, values) {
+                            if (isSmallScreen()) {
+                                return '$' + value.toFixed(0);
+                            }
+                            return '$' + value.toFixed(2);
+                        }
+                    },
                     grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        // Fewer grid lines on small screens
+                        tickLength: isSmallScreen() ? 5 : 10
                     }
                 },
                 indicators: {
                     type: 'linear',
                     position: 'right',
                     title: {
-                        display: true,
+                        display: !isSmallScreen(),  // Hide title on small screens
                         text: 'Indicators'
                     },
                     min: 0,
                     max: 100,
+                    ticks: {
+                        // Hide most ticks on small screens
+                        maxTicksLimit: isSmallScreen() ? 3 : 6,
+                        font: {
+                            size: isSmallScreen() ? 8 : 10
+                        },
+                        display: !isSmallScreen() // Hide ticks completely on small screens
+                    },
                     grid: {
                         display: false
                     }
                 }
             }
         }
+    });
+    
+    // Update chart responsiveness on window resize
+    window.addEventListener('resize', function() {
+        // Update chart to reflect new screen size
+        stockChart.options.scales.x.ticks.display = window.innerWidth < 480 ? false : true;
+        stockChart.options.scales.x.ticks.maxTicksLimit = isSmallScreen() ? 5 : 10;
+        stockChart.options.scales.price.title.display = !isSmallScreen();
+        stockChart.options.scales.price.ticks.maxTicksLimit = isSmallScreen() ? 4 : 8;
+        stockChart.options.scales.indicators.title.display = !isSmallScreen();
+        stockChart.options.scales.indicators.ticks.display = !isSmallScreen();
+        
+        // Update legend font size
+        stockChart.options.plugins.legend.labels.font.size = isSmallScreen() ? 8 : 12;
+        
+        // Update tooltip font size
+        stockChart.options.plugins.tooltip.titleFont.size = isSmallScreen() ? 10 : 14;
+        stockChart.options.plugins.tooltip.bodyFont.size = isSmallScreen() ? 9 : 12;
+        stockChart.options.plugins.tooltip.padding = isSmallScreen() ? 6 : 10;
+        
+        stockChart.update();
     });
     {% endif %}
     
@@ -1009,7 +1110,14 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'top'
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        boxWidth: 6,
+                        font: {
+                            size: isSmallScreen() ? 8 : 12
+                        }
+                    }
                 },
                 tooltip: {
                     callbacks: {
@@ -1028,28 +1136,76 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                             return label;
                         }
-                    }
+                    },
+                    titleFont: {
+                        size: isSmallScreen() ? 10 : 14
+                    },
+                    bodyFont: {
+                        size: isSmallScreen() ? 9 : 12
+                    },
+                    padding: isSmallScreen() ? 6 : 10
                 }
             },
             scales: {
                 x: {
                     grid: {
                         display: false
+                    },
+                    ticks: {
+                        // Adaptive tick display based on screen size
+                        maxTicksLimit: isSmallScreen() ? 4 : 8,
+                        // Hide ticks completely on very small screens
+                        display: window.innerWidth < 480 ? false : true,
+                        font: {
+                            size: isSmallScreen() ? 8 : 10
+                        }
+                    },
+                    // Hide the axis line on small screens
+                    border: {
+                        display: !isSmallScreen()
                     }
                 },
                 y: {
                     beginAtZero: true,
                     ticks: {
+                        // Hide most ticks on small screens
+                        maxTicksLimit: isSmallScreen() ? 4 : 8,
+                        font: {
+                            size: isSmallScreen() ? 8 : 10
+                        },
                         callback: function(value) {
+                            if (isSmallScreen()) {
+                                // Shorter format on mobile
+                                return value >= 1000 ? '$' + (value/1000).toFixed(0) + 'k' : '$' + value;
+                            }
                             return '$' + value.toLocaleString();
                         }
                     },
                     grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
+                        color: 'rgba(0, 0, 0, 0.05)',
+                        // Fewer grid lines on small screens
+                        tickLength: isSmallScreen() ? 5 : 10
                     }
                 }
             }
         }
+    });
+    
+    // Update DCA chart responsiveness on window resize
+    window.addEventListener('resize', function() {
+        // Update chart to reflect new screen size
+        dcaChart.options.scales.x.ticks.display = window.innerWidth < 480 ? false : true;
+        dcaChart.options.scales.x.ticks.maxTicksLimit = isSmallScreen() ? 4 : 8;
+        dcaChart.options.scales.y.ticks.maxTicksLimit = isSmallScreen() ? 4 : 8;
+        dcaChart.options.scales.x.border.display = !isSmallScreen();
+        
+        // Update legend and tooltip font size
+        dcaChart.options.plugins.legend.labels.font.size = isSmallScreen() ? 8 : 12;
+        dcaChart.options.plugins.tooltip.titleFont.size = isSmallScreen() ? 10 : 14;
+        dcaChart.options.plugins.tooltip.bodyFont.size = isSmallScreen() ? 9 : 12;
+        dcaChart.options.plugins.tooltip.padding = isSmallScreen() ? 6 : 10;
+        
+        dcaChart.update();
     });
     {% endif %}
 
