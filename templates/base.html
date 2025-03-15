@@ -55,10 +55,21 @@
     {% block head %}{% endblock %}
 </head>
 <body>
+    <header class="main-header bg-primary">
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container">
+                <a class="navbar-brand d-flex align-items-center" href="/">
+                    <i class="fas fa-chart-line me-2"></i>
+                    <span>Investment Analysis Tool</span>
+                </a>
+            </div>
+        </nav>
+    </header>
+
     <div class="content-wrapper">
         <div class="container py-4">
             {% block content %}{% endblock %}
-      </div>
+        </div>
     </div>
 
     <footer class="footer mt-auto py-3 bg-light">
@@ -120,40 +131,33 @@
 
         // Handle PWA install prompt
         let deferredPrompt;
+        
+        // Create install button
         const installButton = document.createElement('button');
         installButton.style.display = 'none';
-        installButton.className = 'btn btn-sm btn-primary pwa-install-btn';
-        installButton.innerHTML = '<i class="fas fa-download"></i> Install App';
-
-        // Create a container for the install button
+        installButton.className = 'btn btn-primary pwa-install-btn';
+        installButton.innerHTML = '<i class="fas fa-download"></i>';
+        installButton.setAttribute('aria-label', 'Install app');
+        
+        // Create container for install button
         const installContainer = document.createElement('div');
         installContainer.className = 'install-container';
-        installContainer.style.position = 'fixed';
-        installContainer.style.bottom = '20px';
-        installContainer.style.right = '20px';
-        installContainer.style.zIndex = '1000';
+        installContainer.style.display = 'none';  // Hide container initially
         installContainer.appendChild(installButton);
         document.body.appendChild(installContainer);
         
+        // Listen for beforeinstallprompt event
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('beforeinstallprompt event fired');
-            // Store the event for later use
-            deferredPrompt = e;
-            // Show the install button
-            installButton.style.display = 'block';
+            e.preventDefault();  // Prevent automatic browser prompt
+            deferredPrompt = e;  // Store event for later
             
-            // Optional: Show a custom install banner
-            const installBanner = document.createElement('div');
-            installBanner.className = 'install-banner';
-            installBanner.innerHTML = `
-                <div class="alert alert-info alert-dismissible fade show" role="alert">
-                    <strong>Install App!</strong> Add this app to your home screen for the best experience.
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-            `;
-            document.body.prepend(installBanner);
+            // Show install button
+            installContainer.style.display = 'block';
+            installButton.style.display = 'flex';
         });
         
+        // Handle install button click
         installButton.addEventListener('click', async () => {
             console.log('Install button clicked');
             if (!deferredPrompt) {
@@ -162,11 +166,11 @@
             }
             
             try {
-                // Show the install prompt
-                const result = await deferredPrompt.prompt();
+                // Show install prompt
+                await deferredPrompt.prompt();
                 console.log('Install prompt shown');
                 
-                // Wait for the user to respond to the prompt
+                // Wait for user response
                 const choiceResult = await deferredPrompt.userChoice;
                 console.log('User choice:', choiceResult.outcome);
                 
@@ -178,27 +182,97 @@
                 
                 // Clear the deferredPrompt
                 deferredPrompt = null;
+                
                 // Hide the install button
+                installContainer.style.display = 'none';
                 installButton.style.display = 'none';
             } catch (error) {
                 console.error('Error showing install prompt:', error);
             }
         });
         
+        // Handle successful installation
         window.addEventListener('appinstalled', (event) => {
             console.log('App was installed');
-            // Hide the install button and any install banners
+            // Hide the install button
+            installContainer.style.display = 'none';
             installButton.style.display = 'none';
-            const installBanner = document.querySelector('.install-banner');
-            if (installBanner) {
-                installBanner.remove();
-            }
             // Clear the deferredPrompt
             deferredPrompt = null;
         });
     </script>
     
     <style>
+        /* Header styles */
+        .main-header {
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        /* PWA specific styles */
+        .install-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: block !important;
+        }
+        
+        .pwa-install-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            padding: 0;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transition: transform 0.2s ease;
+            background-color: #0066cc;
+            border: none;
+        }
+        
+        .pwa-install-btn:hover {
+            transform: scale(1.05);
+            background-color: #0052a3;
+        }
+        
+        .pwa-install-btn i {
+            font-size: 1.4rem;
+        }
+
+        /* Mobile styles */
+        @media (max-width: 768px) {
+            .install-container {
+                bottom: 20px;
+                right: 20px;
+                display: block !important;
+            }
+            
+            .pwa-install-btn {
+                width: 48px;
+                height: 48px;
+            }
+            
+            .pwa-install-btn i {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (display-mode: standalone) {
+            /* Hide install prompts when already installed */
+            .install-container {
+                display: none !important;
+            }
+        }
+
         /* PWA specific styles */
         .offline-alert {
             position: fixed;
@@ -222,25 +296,10 @@
             padding: 10px;
         }
         
-        .pwa-install-btn {
-            padding: 10px 20px;
-            font-weight: 500;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            border-radius: 20px;
-        }
-        
         /* Apply different styles when offline */
         body.offline-mode .network-dependent {
             opacity: 0.5;
             pointer-events: none;
-        }
-        
-        @media (display-mode: standalone) {
-            /* Hide install prompts when already installed */
-            .install-container,
-            .install-banner {
-                display: none !important;
-            }
         }
         
         /* Mobile-specific install button positioning */
@@ -280,6 +339,7 @@
             overflow-x: hidden;
             overflow-y: visible;
             -webkit-overflow-scrolling: touch;
+            padding-top: 1rem;
         }
         
         /* Chart container responsive height */
