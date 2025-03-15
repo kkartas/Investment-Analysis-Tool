@@ -310,9 +310,25 @@
                         {% endif %}
                         <div class="alert alert-primary">
                             <i class="fas fa-robot me-2"></i> <strong>AI Recommendation:</strong> {{ result.our_recommendation }}
+                            <a href="#" class="text-primary ms-2 recommendation-info" 
+                               data-bs-toggle="popover" 
+                               data-bs-placement="top" 
+                               data-bs-trigger="hover focus"
+                               data-bs-title="AI Recommendation Criteria"
+                               data-bs-content="Buy: Price > SMA(50) > SMA(200), RSI < 70, MACD > Signal Line. Sell: Price < SMA(50) < SMA(200), or RSI > 70, or MACD < Signal Line. Hold: All other scenarios.">
+                                <i class="fas fa-info-circle"></i>
+                            </a>
                         </div>
                         <div class="alert alert-secondary">
                             <i class="fas fa-users me-2"></i> <strong>Analyst Consensus:</strong> {{ result.market_recommendation }}
+                            <a href="#" class="text-secondary ms-2 recommendation-info"
+                               data-bs-toggle="popover" 
+                               data-bs-placement="top" 
+                               data-bs-trigger="hover focus"
+                               data-bs-title="Analyst Consensus"
+                               data-bs-content="Weighted average of professional analysts' recommendations from various financial institutions">
+                                <i class="fas fa-info-circle"></i>
+                            </a>
                         </div>
                         <div class="alert alert-info small mt-3">
                             <i class="fas fa-info-circle me-2"></i> <strong>Disclaimer:</strong> These recommendations are based on technical indicators and market data. They should not be considered as financial advice. Always conduct thorough research before making investment decisions.
@@ -418,27 +434,27 @@
                             <tbody>
                                 <tr>
                                     <td>Market Cap</td>
-                                    <td class="fw-bold">${{ fundamentals.market_cap }}</td>
+                                    <td class="fw-bold">{% if fundamentals.market_cap and fundamentals.market_cap != 'N/A' %}${{ fundamentals.market_cap }}{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>P/E Ratio</td>
-                                    <td class="fw-bold">{{ fundamentals.pe_ratio }}</td>
+                                    <td class="fw-bold">{% if fundamentals.pe_ratio and fundamentals.pe_ratio != 'N/A' %}{{ fundamentals.pe_ratio }}{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>EPS (TTM)</td>
-                                    <td class="fw-bold">${{ fundamentals.eps }}</td>
+                                    <td class="fw-bold">{% if fundamentals.eps and fundamentals.eps != 'N/A' %}${{ fundamentals.eps }}{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>Dividend Yield</td>
-                                    <td class="fw-bold">{{ fundamentals.dividend_yield }}%</td>
+                                    <td class="fw-bold">{% if fundamentals.dividend_yield and fundamentals.dividend_yield != 'N/A' %}{{ fundamentals.dividend_yield }}%{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>52-Week High</td>
-                                    <td class="fw-bold">${{ fundamentals.week_52_high }}</td>
+                                    <td class="fw-bold">{% if fundamentals.week_52_high and fundamentals.week_52_high != 'N/A' %}${{ fundamentals.week_52_high }}{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>52-Week Low</td>
-                                    <td class="fw-bold">${{ fundamentals.week_52_low }}</td>
+                                    <td class="fw-bold">{% if fundamentals.week_52_low and fundamentals.week_52_low != 'N/A' %}${{ fundamentals.week_52_low }}{% else %}N/A{% endif %}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -449,27 +465,27 @@
                             <tbody>
                                 <tr>
                                     <td>Return on Equity (ROE)</td>
-                                    <td class="fw-bold">{{ fundamentals.roe }}%</td>
+                                    <td class="fw-bold">{% if fundamentals.roe and fundamentals.roe != 'N/A' %}{{ fundamentals.roe }}%{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>Return on Assets (ROA)</td>
-                                    <td class="fw-bold">{{ fundamentals.roa }}%</td>
+                                    <td class="fw-bold">{% if fundamentals.roa and fundamentals.roa != 'N/A' %}{{ fundamentals.roa }}%{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>Profit Margin</td>
-                                    <td class="fw-bold">{{ fundamentals.profit_margin }}%</td>
+                                    <td class="fw-bold">{% if fundamentals.profit_margin and fundamentals.profit_margin != 'N/A' %}{{ fundamentals.profit_margin }}%{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>Debt to Equity</td>
-                                    <td class="fw-bold">{{ fundamentals.debt_to_equity }}</td>
+                                    <td class="fw-bold">{% if fundamentals.debt_to_equity and fundamentals.debt_to_equity != 'N/A' %}{{ fundamentals.debt_to_equity }}{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>Current Ratio</td>
-                                    <td class="fw-bold">{{ fundamentals.current_ratio }}</td>
+                                    <td class="fw-bold">{% if fundamentals.current_ratio and fundamentals.current_ratio != 'N/A' %}{{ fundamentals.current_ratio }}{% else %}N/A{% endif %}</td>
                                 </tr>
                                 <tr>
                                     <td>Price to Book (P/B)</td>
-                                    <td class="fw-bold">{{ fundamentals.price_to_book }}</td>
+                                    <td class="fw-bold">{% if fundamentals.price_to_book and fundamentals.price_to_book != 'N/A' %}{{ fundamentals.price_to_book }}{% else %}N/A{% endif %}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -485,35 +501,215 @@
             <!-- Earnings Tab -->
             <div class="tab-pane fade" id="earnings" role="tabpanel">
                 {% if earnings and earnings|length > 0 %}
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Quarter</th>
-                                <th>Date</th>
-                                <th>EPS Estimate</th>
-                                <th>EPS Actual</th>
-                                <th>Surprise</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in earnings %}
-                            <tr>
-                                <td>{{ item.get('quarter', 'N/A') }}</td>
-                                <td>{{ item.get('date', 'N/A') }}</td>
-                                <td>${{ item.get('eps_estimate', 'N/A') }}</td>
-                                <td>${{ item.get('eps_actual', 'N/A') }}</td>
-                                {% if 'surprise' in item and item.surprise is not none %}
-                                    <td class="{% if item.surprise|float > 0 %}text-success{% elif item.surprise|float < 0 %}text-danger{% endif %}">
-                                        {{ item.surprise }}%
-                                    </td>
+                <div class="row mb-4">
+                    <div class="col-lg-12">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Earnings History</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>EPS Estimate</th>
+                                                <th>EPS Actual</th>
+                                                <th>Surprise</th>
+                                                <th>Result</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for item in earnings %}
+                                                {% if item.get('eps_actual') is not none %}
+                                                <tr>
+                                                    <td>{{ item.get('date', 'N/A') }}</td>
+                                                    <td>
+                                                        {% if item.get('eps_estimate') is not none %}
+                                                            ${{ item.eps_estimate }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if item.get('eps_actual') is not none %}
+                                                            ${{ item.eps_actual }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if item.get('surprise') is not none %}
+                                                            <span class="{% if item.surprise > 0 %}text-success{% elif item.surprise < 0 %}text-danger{% endif %}">
+                                                                {{ item.surprise }}%
+                                                            </span>
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if item.get('surprise') is not none %}
+                                                            {% if item.surprise > 10 %}
+                                                                <span class="badge bg-success">Beat <i class="fas fa-arrow-up"></i></span>
+                                                            {% elif item.surprise > 0 %}
+                                                                <span class="badge bg-info">Beat <i class="fas fa-check"></i></span>
+                                                            {% elif item.surprise == 0 %}
+                                                                <span class="badge bg-secondary">Met</span>
+                                                            {% elif item.surprise > -10 %}
+                                                                <span class="badge bg-warning">Missed <i class="fas fa-check"></i></span>
+                                                            {% else %}
+                                                                <span class="badge bg-danger">Missed <i class="fas fa-arrow-down"></i></span>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Earnings Summary</h5>
+                            </div>
+                            <div class="card-body">
+                                {% set beat_count = 0 %}
+                                {% set met_count = 0 %}
+                                {% set missed_count = 0 %}
+                                {% set total_with_surprise = 0 %}
+                                
+                                {% for item in earnings %}
+                                    {% if item.get('surprise') is not none %}
+                                        {% set total_with_surprise = total_with_surprise + 1 %}
+                                        {% if item.surprise > 0 %}
+                                            {% set beat_count = beat_count + 1 %}
+                                        {% elif item.surprise == 0 %}
+                                            {% set met_count = met_count + 1 %}
+                                        {% else %}
+                                            {% set missed_count = missed_count + 1 %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if total_with_surprise > 0 %}
+                                    {% set beat_pct = (beat_count / total_with_surprise * 100)|int %}
+                                    {% set met_pct = (met_count / total_with_surprise * 100)|int %}
+                                    {% set missed_pct = (missed_count / total_with_surprise * 100)|int %}
+                                    
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="fw-bold">Earnings Performance</span>
+                                            <span class="text-muted small">Last {{ total_with_surprise }} quarters</span>
+                                        </div>
+                                        <div class="progress" style="height: 25px;">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ beat_pct }}%" 
+                                                aria-valuenow="{{ beat_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                                Beat {{ beat_pct }}%
+                                            </div>
+                                            <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ met_pct }}%" 
+                                                aria-valuenow="{{ met_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                                Met {{ met_pct }}%
+                                            </div>
+                                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ missed_pct }}%" 
+                                                aria-valuenow="{{ missed_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                                Missed {{ missed_pct }}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row text-center mt-4">
+                                        <div class="col">
+                                            <div class="p-3 border rounded">
+                                                <div class="h3 text-success mb-0">{{ beat_count }}</div>
+                                                <div class="small text-muted">Beat</div>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="p-3 border rounded">
+                                                <div class="h3 text-secondary mb-0">{{ met_count }}</div>
+                                                <div class="small text-muted">Met</div>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="p-3 border rounded">
+                                                <div class="h3 text-danger mb-0">{{ missed_count }}</div>
+                                                <div class="small text-muted">Missed</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 {% else %}
-                                    <td>N/A</td>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i> No earnings surprise data available for comparison.
+                                    </div>
                                 {% endif %}
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Next Earnings</h5>
+                            </div>
+                            <div class="card-body">
+                                {% set next_earnings_list = [] %}
+                                {% for item in earnings %}
+                                    {% if item.get('eps_actual') is none and not next_earnings_list %}
+                                        {% set _ = next_earnings_list.append(item) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% set next_earnings = next_earnings_list[0] if next_earnings_list else none %}
+                                
+                                {% if next_earnings %}
+                                    <div class="text-center my-4">
+                                        <div class="h3 mb-2">{{ next_earnings.date }}</div>
+                                        
+                                        {% if next_earnings.quarter and "N/A" not in next_earnings.quarter %}
+                                            <p class="lead mb-3">{{ next_earnings.quarter }}</p>
+                                        {% endif %}
+                                        
+                                        {% if next_earnings.eps_estimate is not none %}
+                                            <div class="alert alert-primary">
+                                                <div class="fw-bold">EPS Estimate</div>
+                                                <div class="h4">${{ next_earnings.eps_estimate }}</div>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        <div class="d-flex align-items-center justify-content-center mt-4">
+                                            <div class="countdown-timer">
+                                                <div class="badge bg-primary p-2 mb-2">Upcoming</div>
+                                                <div>
+                                                    <a href="data:text/calendar;charset=utf-8,BEGIN:VCALENDAR%0D%0AVERSION:2.0%0D%0ABEGIN:VEVENT%0D%0ADTSTART:{{ next_earnings.date|replace('/', '')|replace('-', '') }}T160000Z%0D%0ADTEND:{{ next_earnings.date|replace('/', '')|replace('-', '') }}T170000Z%0D%0ASUMMARY:{{ result.symbol }} Earnings Call%0D%0ADESCRIPTION:Quarterly earnings report for {{ result.symbol }}%0D%0AEND:VEVENT%0D%0AEND:VCALENDAR" 
+                                                       download="{{ result.symbol }}_earnings.ics" 
+                                                       class="calendar-link">
+                                                        <i class="far fa-calendar-alt me-2"></i>
+                                                        <span class="countdown-text">Mark your calendar</span>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-info h-100 d-flex align-items-center justify-content-center text-center">
+                                        <div>
+                                            <i class="far fa-calendar-alt fa-3x mb-3"></i>
+                                            <p>No upcoming earnings date available at this time.</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% else %}
                 <div class="alert alert-info">
@@ -975,4 +1171,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 </script>
+
+<!-- Initialize popovers -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl, {
+                html: true
+            });
+        });
+    });
+</script>
+</body>
+</html>
 {% endblock %}

@@ -234,6 +234,28 @@
                 display: none !important;
             }
         }
+        
+        /* Add styles for the calendar link */
+        .calendar-link {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #495057;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-link:hover {
+            background-color: #e2e6ea;
+            color: #212529;
+            text-decoration: none;
+        }
+        
+        .calendar-link i {
+            color: #0d6efd;
+        }
     </style>
     
     {% block scripts %}{% endblock %}
