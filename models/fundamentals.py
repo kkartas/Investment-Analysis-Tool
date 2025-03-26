@@ -82,7 +82,8 @@ def get_fundamentals(ticker):
             "profit_margin": round(info.get("profitMargins", 0) * 100, 2) if info.get("profitMargins") is not None else "N/A",
             "debt_to_equity": debt_to_equity,
             "current_ratio": current_ratio,
-            "price_to_book": info.get("priceToBook", "N/A")
+            "price_to_book": info.get("priceToBook", "N/A"),
+            "company_name": info.get("shortName", info.get("longName", ""))
         }
         
         return fundamentals

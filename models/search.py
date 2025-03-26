@@ -24,13 +24,20 @@ def search_tickers(query, max_results=10):
         possible_matches = srch.quotes
         results = []
         for match in possible_matches:
+            # Use shortname if available, otherwise use longname
+            company_name = match.get('shortname', match.get('longname', ''))
+            
             results.append({
                 'symbol': match.get('symbol', ''),
+                'name': company_name,  # Add a clear name property
                 'shortname': match.get('shortname', ''),
                 'longname': match.get('longname', ''),
                 'exch': match.get('exch', ''),
                 'type': match.get('typeDisp', '')
             })
+        
+        # Debug log the results
+        print(f"Search results for '{query}': {results}")
         return results
     except Exception as e:
         print("Error in search_tickers:", e)

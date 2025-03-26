@@ -416,6 +416,46 @@
         .calendar-link i {
             color: #0d6efd;
         }
+
+        /* Custom styling */
+        .stock-search-results {
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 0 0 4px 4px;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stock-search-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .stock-search-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .stock-item-content {
+            display: flex;
+            align-items: center;
+        }
+        
+        .stock-symbol {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        .stock-separator {
+            margin-right: 5px;
+            font-weight: bold;
+        }
+        
+        .stock-name {
+            font-weight: bold;
+        }
     </style>
 
   {% block scripts %}{% endblock %}

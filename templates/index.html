@@ -4,90 +4,66 @@
 <div class="row">
     <!-- Search and Stock Summary Section -->
     <div class="col-lg-12 mb-4">
-        <div class="card">
-            <div class="card-body p-4">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center mb-3 mb-md-0">
-                            <div class="stock-search-container" x-data="{ searchQuery: '', showResults: false, results: [] }">
-                                <form method="POST" action="/" class="mb-0 position-relative" id="stockForm">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
-                                        <input 
-                                            type="text" 
-                                            class="form-control form-control-lg" 
-                                            placeholder="Enter stock symbol or name..." 
-                                            name="symbol" 
-                                            id="symbol"
-                                            autocomplete="off"
-                                            x-model="searchQuery"
-                                            x-on:input="
-                                                if(searchQuery.length > 1) {
-                                                    fetch('/search_tickers?query=' + searchQuery)
-                                                    .then(response => response.json())
-                                                    .then(data => {
-                                                        results = data;
-                                                        showResults = results.length > 0;
-                                                    });
-                                                } else {
-                                                    showResults = false;
-                                                }
-                                            "
-                                            x-on:blur="setTimeout(() => showResults = false, 300)"
-                                            x-on:focus="if(searchQuery.length > 1) showResults = true"
-                                            {% if result %} value="{{ result.symbol }}" {% endif %}
-                                            required
-                                        >
-                                        <button type="submit" name="action" value="load_stock" class="btn btn-primary">
-                                            <i class="fas fa-chart-line me-1"></i> Analyze
-                                        </button>
-                                        <input type="hidden" name="start_date" id="start_date" value="{{ default_start_date }}">
-                                        <input type="hidden" name="end_date" id="end_date" value="{{ default_end_date }}">
-                                    </div>
-                                    <template x-if="showResults">
-                                        <div class="stock-search-results">
-                                            <template x-for="item in results" :key="item.symbol">
-                                                <div class="stock-search-item" 
-                                                     x-on:click="
-                                                        document.getElementById('symbol').value = item.symbol;
-                                                        searchQuery = item.symbol;
-                                                        showResults = false;
-                                                        document.getElementById('stockForm').submit();
-                                                     ">
-                                                    <div class="fw-bold" x-text="item.symbol"></div>
-                                                    <div class="small text-secondary" x-text="item.name"></div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </form>
-                            </div>
-                        </div>
+        <div class="card" style="box-shadow: none;">
+            <div class="stock-search-container" x-data="{ searchQuery: '', showResults: false, results: [] }">
+                <form method="POST" action="/" class="position-relative" id="stockForm" style="margin: 0;" x-on:submit.prevent="
+                    if(searchQuery.length > 0) {
+                        document.getElementById('stockForm').submit();
+                    }
+                ">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <span class="input-group-text bg-white border-0 rounded-0" style="height: 48px;"><i class="fas fa-search"></i></span>
+                        <input 
+                            type="text" 
+                            class="form-control form-control-lg border-0 rounded-0" 
+                            style="height: 48px;"
+                            placeholder="Enter stock symbol or name..." 
+                            name="symbol" 
+                            id="symbol"
+                            autocomplete="off"
+                            x-model="searchQuery"
+                            x-on:input="
+                                if(searchQuery.length > 1) {
+                                    fetch('/search_tickers?query=' + searchQuery)
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        results = data;
+                                        showResults = results.length > 0;
+                                        console.log('Search results:', results);
+                                    });
+                                } else {
+                                    showResults = false;
+                                }
+                            "
+                            x-on:blur="setTimeout(() => showResults = false, 300)"
+                            x-on:focus="if(searchQuery.length > 1) showResults = true"
+                            {% if result %} value="{{ result.symbol }}" {% endif %}
+                            required
+                        >
+                        <input type="hidden" name="action" value="load_stock">
+                        <input type="hidden" name="start_date" id="start_date" value="{{ default_start_date }}">
+                        <input type="hidden" name="end_date" id="end_date" value="{{ default_end_date }}">
                     </div>
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-md-end">
-                            <div class="date-range-picker">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dateRangeBtn" data-bs-toggle="dropdown">
-                                    <i class="far fa-calendar-alt me-1"></i> 
-                                    <span id="dateRangeText">Date Range</span>
-                                </button>
-                                <div class="dropdown-menu p-3" style="width: 300px;">
-                                    <div class="mb-2">
-                                        <label for="startDatePicker" class="form-label">Start Date</label>
-                                        <input type="text" class="form-control" id="startDatePicker" placeholder="Start Date">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label for="endDatePicker" class="form-label">End Date</label>
-                                        <input type="text" class="form-control" id="endDatePicker" placeholder="End Date">
-                                    </div>
-                                    <div class="d-grid">
-                                        <button type="button" class="btn btn-primary" id="applyDateRange">Apply</button>
+                    <template x-if="showResults">
+                        <div class="stock-search-results">
+                            <template x-for="item in results" :key="item.symbol">
+                                <div class="stock-search-item" 
+                                     x-on:click="
+                                        document.getElementById('symbol').value = item.symbol;
+                                        searchQuery = item.symbol;
+                                        showResults = false;
+                                        document.getElementById('stockForm').submit();
+                                     ">
+                                    <div class="stock-item-content">
+                                        <span class="stock-symbol" x-text="item.symbol"></span>
+                                        <span class="stock-separator"> - </span>
+                                        <span class="stock-name" x-text="item.name"></span>
                                     </div>
                                 </div>
-                            </div>
+                            </template>
                         </div>
-                    </div>
-                </div>
+                    </template>
+                </form>
             </div>
         </div>
     </div>
@@ -105,16 +81,24 @@
 <div class="row">
     <div class="col-lg-8">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <div>
-                    <h5 class="mb-0">{{ result.symbol }} Price Chart</h5>
+            <div class="card-header">
+                <h5 class="mb-0">{{ fundamentals.company_name if fundamentals.company_name else result.symbol }} - {{ result.symbol }}</h5>
+                <div class="price-change mt-1 mb-3">
+                    <span class="{% if result.price_change_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ result.price_change_pct }}% {{ '▲' if result.price_change_pct >= 0 else '▼' }}
+                    </span>
+                    <small class="text-muted">({{ period }})</small>
                 </div>
-                <div class="btn-group" role="group">
-                    <a href="/period?symbol={{ result.symbol }}&period=1m" class="btn btn-sm btn-outline-secondary {% if period == '1m' %}active{% endif %}">1M</a>
-                    <a href="/period?symbol={{ result.symbol }}&period=3m" class="btn btn-sm btn-outline-secondary {% if period == '3m' %}active{% endif %}">3M</a>
-                    <a href="/period?symbol={{ result.symbol }}&period=6m" class="btn btn-sm btn-outline-secondary {% if period == '6m' %}active{% endif %}">6M</a>
-                    <a href="/period?symbol={{ result.symbol }}&period=1y" class="btn btn-sm btn-outline-secondary {% if period == '1y' or not period %}active{% endif %}">1Y</a>
-                    <a href="/period?symbol={{ result.symbol }}&period=5y" class="btn btn-sm btn-outline-secondary {% if period == '5y' %}active{% endif %}">5Y</a>
+                <div class="d-flex justify-content-end">
+                    <div class="btn-group" role="group">
+                        <a href="/period?symbol={{ result.symbol }}&period=5d" class="btn btn-sm btn-outline-secondary {% if period == '5d' %}active{% endif %}">5D</a>
+                        <a href="/period?symbol={{ result.symbol }}&period=1m" class="btn btn-sm btn-outline-secondary {% if period == '1m' %}active{% endif %}">1M</a>
+                        <a href="/period?symbol={{ result.symbol }}&period=3m" class="btn btn-sm btn-outline-secondary {% if period == '3m' %}active{% endif %}">3M</a>
+                        <a href="/period?symbol={{ result.symbol }}&period=6m" class="btn btn-sm btn-outline-secondary {% if period == '6m' %}active{% endif %}">6M</a>
+                        <a href="/period?symbol={{ result.symbol }}&period=1y" class="btn btn-sm btn-outline-secondary {% if period == '1y' or not period %}active{% endif %}">1Y</a>
+                        <a href="/period?symbol={{ result.symbol }}&period=5y" class="btn btn-sm btn-outline-secondary {% if period == '5y' %}active{% endif %}">5Y</a>
+                        <a href="/period?symbol={{ result.symbol }}&period=all" class="btn btn-sm btn-outline-secondary {% if period == 'all' %}active{% endif %}">All</a>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
@@ -805,42 +789,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Configure date pickers
-    const startDatePicker = flatpickr("#startDatePicker", {
-        dateFormat: "d/m/Y",
-        defaultDate: "{{ default_start_date }}",
-        maxDate: "today",
-        static: true,
-        appendTo: document.querySelector('.date-range-picker .dropdown-menu'),
-        onChange: function(selectedDates, dateStr) {
-            console.log("Start date changed:", dateStr);
-        }
-    });
-    
-    const endDatePicker = flatpickr("#endDatePicker", {
-        dateFormat: "d/m/Y",
-        defaultDate: "{{ default_end_date }}",
-        maxDate: "today",
-        static: true,
-        appendTo: document.querySelector('.date-range-picker .dropdown-menu'),
-        onChange: function(selectedDates, dateStr) {
-            console.log("End date changed:", dateStr);
-        }
-    });
-    
-    // Update hidden form inputs when date range is applied
-    document.getElementById('applyDateRange').addEventListener('click', function() {
-        document.getElementById('start_date').value = startDatePicker.input.value;
-        document.getElementById('end_date').value = endDatePicker.input.value;
-        
-        // Update the date range text
-        document.getElementById('dateRangeText').textContent = 
-            startDatePicker.input.value + ' - ' + endDatePicker.input.value;
-    });
-    
-    // Initially set the date range text
-    document.getElementById('dateRangeText').textContent = 
-        "{{ default_start_date }} - {{ default_end_date }}";
+    // Configure date pickers - REMOVED since we removed the date picker
     
     {% if stock_chart_data and stock_chart_data.dates %}
     // Stock price chart

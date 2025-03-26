@@ -57,10 +57,10 @@ def search_tickers_route():
 @app.route('/period')
 def period():
     """
-    Handle period links for chart time periods (1m, 3m, 6m, 1y, 5y)
+    Handle period links for chart time periods (1d, 5d, 1m, 3m, 6m, 1y, 5y, all)
     """
     symbol = request.args.get('symbol')
-    period = request.args.get('period', '1m')  # Default to 1m if not specified
+    period = request.args.get('period', '1d')  # Default to 1d if not specified
     
     if not symbol:
         flash('No symbol provided', 'danger')
@@ -69,18 +69,27 @@ def period():
     # Calculate start and end dates based on period
     end_date = datetime.today()
     
-    if period == '1m':
+    if period == '1d':
+        start_date = end_date - timedelta(days=1)
+    elif period == '5d':
+        start_date = end_date - timedelta(days=5)
+    elif period == '1m':
         start_date = end_date - timedelta(days=30)
     elif period == '3m':
         start_date = end_date - timedelta(days=90)
     elif period == '6m':
         start_date = end_date - timedelta(days=180)
+    elif period == 'ytd':
+        start_date = datetime(end_date.year, 1, 1)  # January 1st of current year
     elif period == '1y':
         start_date = end_date - timedelta(days=365)
     elif period == '5y':
         start_date = end_date - timedelta(days=1825)
+    elif period == 'all':
+        # For 'all', we'll set a very old date - yfinance will return all available data
+        start_date = end_date - timedelta(days=36500)  # ~100 years
     else:
-        start_date = end_date - timedelta(days=730)  # Default to 2 years
+        start_date = end_date - timedelta(days=1)  # Default to 1d
     
     # Format dates as dd/mm/yyyy
     start_date_str = start_date.strftime('%d/%m/%Y')
@@ -107,7 +116,7 @@ def index():
     stock_chart_data = {}
     dca_chart_data = {}
     active_tab = 'stock-data'  # default
-    period = request.args.get('period', '1y')  # Default to 1y instead of 1m
+    period = request.args.get('period', '1y')  # Default to 1y
 
     # Default date range: 1 year (instead of 2 years)
     default_end_date_dt = datetime.today()
@@ -183,6 +192,12 @@ def index():
 
                     if not data.empty:
                         latest_data = data.iloc[-1]
+                        # Calculate price change percentage for the period
+                        first_close = data.iloc[0]['Close'] if not data.empty else 0
+                        last_close = data.iloc[-1]['Close'] if not data.empty else 0
+                        price_change_pct = ((last_close - first_close) / first_close * 100) if first_close > 0 else 0
+                        price_change_pct = round(price_change_pct, 2)
+                        
                         # Market recommendation
                         market_label, market_counts = get_market_recommendation(ticker)
                         
@@ -213,7 +228,8 @@ def index():
                             'Signal_Line': safe_str(latest_data.get('Signal_Line', float('nan'))),
                             'our_recommendation': our_rec,
                             'market_recommendation': market_label,
-                            'market_recommendation_counts': standardized_market_counts
+                            'market_recommendation_counts': standardized_market_counts,
+                            'price_change_pct': price_change_pct
                         }
 
                     # DCA handling
