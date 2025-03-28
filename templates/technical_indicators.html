@@ -30,18 +30,18 @@
         <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Technical Analysis Summary</h5>
-                <span class="badge {% if recommendation.summary == 'Strong Buy' or recommendation.summary == 'Buy' %}bg-success{% elif recommendation.summary == 'Strong Sell' or recommendation.summary == 'Sell' %}bg-danger{% else %}bg-warning{% endif %} fs-6">{{ recommendation.summary }}</span>
+                <span class="badge {% if recommendation.label == 'Strong Buy' or recommendation.label == 'Buy' %}bg-success{% elif recommendation.label == 'Strong Sell' or recommendation.label == 'Sell' %}bg-danger{% else %}bg-warning text-dark{% endif %} fs-6">{{ recommendation.label }}</span>
             </div>
             <div class="card-body">
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="d-flex align-items-center mb-3">
                             <div class="me-3">
-                                <div class="progress-ring" data-value="{{ recommendation.confidence }}">
+                                <div class="progress-ring" data-value="{{ confidence }}">
                                     <svg width="80" height="80">
                                         <circle class="progress-ring-circle-bg" stroke-width="8" fill="transparent" r="34" cx="40" cy="40"/>
                                         <circle class="progress-ring-circle" stroke-width="8" fill="transparent" r="34" cx="40" cy="40"/>
-                                        <text x="40" y="45" text-anchor="middle" class="progress-text">{{ recommendation.confidence }}%</text>
+                                        <text x="40" y="45" text-anchor="middle" class="progress-text">{{ confidence }}%</text>
                                     </svg>
                                 </div>
                             </div>
@@ -52,15 +52,14 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="mb-2">Technical Score</h6>
+                        <h6 class="mb-2">Technical Score ({{ recommendation.score }}/100)</h6>
                         <div class="progress mb-1" style="height: 10px;">
-                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (recommendation.score + 10) / 20 * 100 }}%"></div>
+                            <div class="progress-bar {% if recommendation.score >= 75 %}bg-success{% elif recommendation.score >= 60 %}bg-primary{% elif recommendation.score <= 25 %}bg-danger{% elif recommendation.score <= 40 %}bg-warning{% else %}bg-secondary{% endif %}" role="progressbar" style="width: {{ recommendation.score }}%"></div>
                         </div>
                         <div class="d-flex justify-content-between">
-                            <small class="text-danger">Bearish</small>
-                            <small class="text-success">Bullish</small>
+                            <small class="text-danger">Bearish (0)</small>
+                            <small class="text-success">Bullish (100)</small>
                         </div>
-                        <p class="mt-2">Score: {{ recommendation.score }}</p>
                     </div>
                 </div>
 
@@ -75,15 +74,23 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for signal in recommendation.signals %}
+                            {% for signal in signals %}
                             <tr>
                                 <td>{{ signal.indicator }}</td>
                                 <td>
-                                    <span class="badge {% if signal.signal == 'Bullish' %}bg-success{% elif signal.signal == 'Bearish' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    <span class="badge 
+                                        {% if signal.signal == 'Bullish' or signal.signal == 'Bullish Crossover' or signal.signal == 'Above' or signal.signal == 'Increasing' or signal.signal == 'Oversold' %}bg-success
+                                        {% elif signal.signal == 'Bearish' or signal.signal == 'Bearish Crossover' or signal.signal == 'Below' or signal.signal == 'Decreasing' or signal.signal == 'Overbought' %}bg-danger
+                                        {% elif signal.signal == 'Neutral' %}bg-secondary
+                                        {% else %}bg-light text-dark{% endif %}">
                                         {{ signal.signal }}
                                     </span>
                                 </td>
                                 <td class="small">{{ signal.details }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No signals generated.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -278,12 +285,45 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Parse the chart data from JSON
-        const chartData = JSON.parse({{ chart_data_json|safe }});
+        let chartData;
+        
+        try {
+            // The server sends a JSON string that's already wrapped in quotes
+            const jsonStr = {{ chart_data_json|safe }};
+            chartData = JSON.parse(jsonStr);
+            console.log("Chart data parsed successfully");
+        } catch (error) {
+            console.error("Error parsing chart data:", error);
+            // Provide fallback empty data structure
+            chartData = {
+                dates: [],
+                close: [],
+                volume: [],
+                sma20: [], sma50: [], sma200: [],
+                ema12: [], ema26: [], ema50: [],
+                rsi: [],
+                macd_line: [], macd_signal: [], macd_hist: [],
+                bb_upper: [], bb_middle: [], bb_lower: [],
+                stoch_k: [], stoch_d: [],
+                atr: [],
+                obv: []
+            };
+        }
+        
         const labels = chartData.dates || []; // Use dates as labels
-
+        
+        // Check if we have data to render charts
+        if (labels.length === 0) {
+            console.warn("No chart data available");
+            document.querySelectorAll('.chart-container').forEach(container => {
+                container.innerHTML = '<div class="text-center text-muted py-5">No data available for the selected period</div>';
+            });
+            return;
+        }
+        
         // --- Chart Configurations --- 
 
         // 1. Price Chart (Candlestick or Line)
@@ -354,10 +394,22 @@
                 },
                 plugins: { 
                     legend: { display: false },
-                    annotation: { // Add overbought/oversold lines
+                    annotation: {
                         annotations: {
-                            line1: { type: 'line', yMin: 70, yMax: 70, borderColor: 'rgb(255, 99, 132, 0.5)', borderWidth: 1 },
-                            line2: { type: 'line', yMin: 30, yMax: 30, borderColor: 'rgb(75, 192, 192, 0.5)', borderWidth: 1 }
+                            overboughtLine: {
+                                type: 'line',
+                                yMin: 70,
+                                yMax: 70,
+                                borderColor: 'rgba(255, 99, 132, 0.5)',
+                                borderWidth: 1
+                            },
+                            oversoldLine: {
+                                type: 'line',
+                                yMin: 30,
+                                yMax: 30,
+                                borderColor: 'rgba(75, 192, 192, 0.5)',
+                                borderWidth: 1
+                            }
                         }
                     }
                 }
@@ -508,10 +560,22 @@
                 },
                 plugins: {
                     legend: { display: true, position: 'top' },
-                    annotation: { // Add overbought/oversold lines
+                    annotation: {
                         annotations: {
-                            line1: { type: 'line', yMin: 80, yMax: 80, borderColor: 'rgb(255, 99, 132, 0.5)', borderWidth: 1 },
-                            line2: { type: 'line', yMin: 20, yMax: 20, borderColor: 'rgb(75, 192, 192, 0.5)', borderWidth: 1 }
+                            overboughtLine: {
+                                type: 'line',
+                                yMin: 80,
+                                yMax: 80,
+                                borderColor: 'rgba(255, 99, 132, 0.5)',
+                                borderWidth: 1
+                            },
+                            oversoldLine: {
+                                type: 'line',
+                                yMin: 20,
+                                yMax: 20,
+                                borderColor: 'rgba(75, 192, 192, 0.5)',
+                                borderWidth: 1
+                            }
                         }
                     }
                 }
@@ -542,10 +606,158 @@
             }
         });
         
-        // Placeholder for ADX and CCI charts if data becomes available
-        // const adxCtx = document.getElementById('adxChart').getContext('2d');
-        // const cciCtx = document.getElementById('cciChart').getContext('2d');
-
+        // ADX Chart
+        const adxCtx = document.getElementById('adxChart').getContext('2d');
+        new Chart(adxCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'ADX',
+                        data: chartData.adx?.adx || [],
+                        borderColor: '#7E57C2',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1
+                    },
+                    {
+                        label: '+DI',
+                        data: chartData.adx?.plus_di || [],
+                        borderColor: '#4CAF50',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1
+                    },
+                    {
+                        label: '-DI',
+                        data: chartData.adx?.minus_di || [],
+                        borderColor: '#F44336',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day'
+                        },
+                        ticks: {
+                            source: 'auto',
+                            maxRotation: 0,
+                            autoSkip: true
+                        }
+                    },
+                    y: {
+                        min: 0,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'ADX Value'
+                        }
+                    }
+                },
+                plugins: {
+                    annotation: {
+                        annotations: {
+                            trendLine: {
+                                type: 'line',
+                                yMin: 25,
+                                yMax: 25,
+                                borderColor: '#FFA726',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
+                                label: {
+                                    content: 'Strong Trend',
+                                    enabled: true,
+                                    position: 'start'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // CCI Chart
+        const cciCtx = document.getElementById('cciChart').getContext('2d');
+        new Chart(cciCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'CCI',
+                        data: chartData.cci || [],
+                        borderColor: '#26A69A',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day'
+                        },
+                        ticks: {
+                            source: 'auto',
+                            maxRotation: 0,
+                            autoSkip: true
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'CCI Value'
+                        }
+                    }
+                },
+                plugins: {
+                    annotation: {
+                        annotations: {
+                            overboughtLine: {
+                                type: 'line',
+                                yMin: 100,
+                                yMax: 100,
+                                borderColor: '#F44336',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
+                                label: {
+                                    content: 'Overbought',
+                                    enabled: true,
+                                    position: 'start'
+                                }
+                            },
+                            oversoldLine: {
+                                type: 'line',
+                                yMin: -100,
+                                yMax: -100,
+                                borderColor: '#4CAF50',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
+                                label: {
+                                    content: 'Oversold',
+                                    enabled: true,
+                                    position: 'start'
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
     });
 </script>
 

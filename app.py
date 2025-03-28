@@ -558,852 +558,81 @@ def dividends():
 
 @app.route('/technical_indicators')
 def technical_indicators():
-    """
-    Display detailed technical indicators for a stock
-    """
-    symbol = request.args.get('symbol', '').strip()
-    period = request.args.get('period', '1y') # Period might influence history fetched in get_technical_indicators in future
-    
-    if not symbol:
-        flash('Please provide a stock symbol', 'danger')
-        return redirect('/')
-        
-    ticker_data = get_ticker_data(symbol)
-    # Fetch the structured indicator data
-    indicators_data = get_technical_indicators(symbol)
-    
-    # Safely serialize chart_data for JavaScript
-    chart_data_cleaned = nan_to_null(indicators_data.get('chart_data', {}))
-    try:
-        chart_data_json = Markup(json.dumps(chart_data_cleaned))
-    except Exception as e:
-        print(f"Error serializing chart_data for technical indicators: {e}")
-        chart_data_json = Markup(json.dumps({})) # Fallback
-
-    # Prepare signals list for the template table
-    signals_list = []
-    for indicator, signal in indicators_data.get('signals', {}).items():
-        # Add details based on indicator/signal if needed
-        details = f"{indicator} is currently {signal}." 
-        if indicator == 'RSI':
-            details += f" Value: {indicators_data.get('latest_values', {}).get('rsi', 'N/A'):.1f}" 
-            details += " (Overbought > 70, Oversold < 30)"
-        elif indicator == 'MACD':
-             details += f" Line: {indicators_data.get('latest_values', {}).get('macd_line', 'N/A'):.2f}, Signal: {indicators_data.get('latest_values', {}).get('macd_signal', 'N/A'):.2f}"
-        # Add more details for other indicators if desired
-
-        signals_list.append({
-            'indicator': indicator,
-            'signal': signal,
-            'details': details
-        })
-        
-    # The recommendation structure from get_technical_indicators should already match the template
-    recommendation = indicators_data.get('recommendation', {'label': 'N/A', 'score': 50})
-    confidence = indicators_data.get('confidence', 0)
-    latest_values = indicators_data.get('latest_values', {})
-
-    return render_template(
-        'technical_indicators.html',
-        ticker_data=ticker_data,
-        recommendation=recommendation, 
-        confidence=confidence,
-        signals=signals_list, # Pass the formatted list
-        latest_values=latest_values, # Pass latest values if needed by template
-        chart_data_json=chart_data_json, # Pass JSON string
-        selected_period=period, # Pass period for active button state
-        symbol=ticker_data.get('symbol', symbol.upper()),
-        company_name=ticker_data.get('company_name', symbol.upper())
-    )
-
-@app.route('/peer_comparison')
-def peer_comparison():
-    """
-    Display peer comparison data for a stock
-    """
-    symbol = request.args.get('symbol', '').strip()
-    
-    if not symbol:
-        flash('Please provide a stock symbol', 'danger')
-        return redirect('/')
-        
-    ticker_data = get_ticker_data(symbol)
-    peer_data = get_peer_data(symbol)
-    
-    # Get selected peers from query parameter or use all peers
-    selected_peers = request.args.get('peers', '')
-    peer_symbols = selected_peers.split(',') if selected_peers else [p['symbol'] for p in peer_data['peers'] if 'symbol' in p]
-    
-    # Make sure to only include valid symbols
-    peer_symbols = [p for p in peer_symbols if p and p.strip()]
-    
-    # Get comparison data with all symbols including the main one
-    comparison_data = get_comparison_data([symbol] + peer_symbols)
-    
-    # Ensure required structures exist for the template
-    for peer in peer_data.get('peers', []):
-        if 'metrics' not in peer:
-            peer['metrics'] = {
-                'valuation': {
-                    'pe_ratio': peer.get('pe_ratio', 'N/A'),
-                    'dividend_yield': peer.get('dividend_yield', 'N/A')
-                },
-                'performance': {
-                    'one_year_return': peer.get('one_year_return', 'N/A')
-                }
-            }
-        
-        # Fill in missing attributes for template compatibility
-        if 'company_name' not in peer:
-            peer['company_name'] = peer.get('name', peer.get('symbol', 'Unknown'))
-        
-        if 'current_price' not in peer:
-            peer['current_price'] = peer.get('price', 0)
-        
-        # Ensure all other necessary attributes exist
-        for attr in ['market_cap', 'one_year_return', 'pe_ratio', 'dividend_yield']:
-            if attr not in peer:
-                peer[attr] = 'N/A'
-    
-    # Ensure comparison_data has necessary structure
-    if 'selected_peers' not in comparison_data:
-        comparison_data['selected_peers'] = []
-        for symbol in peer_symbols:
-            # Find peer from peer_data
-            peer_info = next((p for p in peer_data['peers'] if p['symbol'] == symbol), None)
-            if peer_info:
-                comparison_data['selected_peers'].append({
-                    'symbol': symbol,
-                    'name': peer_info.get('company_name', peer_info.get('name', symbol))
-                })
-
-    # Ensure metrics structure exists for the template
-    if 'metrics' not in comparison_data:
-        comparison_data['metrics'] = {
-            'valuation': [],
-            'growth': [],
-            'profitability': [],
-            'financial_health': []
-        }
-        
-        # Add placeholder metrics for the detailed metrics table
-        # Valuation metrics
-        valuation_metrics = [
-            {'name': 'P/E Ratio', 'unit': ''},
-            {'name': 'P/B Ratio', 'unit': ''},
-            {'name': 'P/S Ratio', 'unit': ''},
-            {'name': 'EV/EBITDA', 'unit': ''},
-            {'name': 'PEG Ratio', 'unit': ''}
-        ]
-        for metric in valuation_metrics:
-            metric_data = {
-                'name': metric['name'],
-                'value': 'N/A',
-                'unit': metric['unit'],
-                'peer_values': [],
-                'industry_avg': 'N/A',
-                'is_better_than_avg': False,
-                'is_worse_than_avg': False
-            }
-            # Add placeholder peer values
-            for p in peer_symbols:
-                metric_data['peer_values'].append({'symbol': p, 'value': 'N/A'})
-            comparison_data['metrics']['valuation'].append(metric_data)
-        
-        # Growth metrics
-        growth_metrics = [
-            {'name': 'Revenue Growth (YoY)', 'unit': '%'},
-            {'name': 'Earnings Growth (YoY)', 'unit': '%'},
-            {'name': 'Revenue Growth (3Y)', 'unit': '%'},
-            {'name': 'Earnings Growth (3Y)', 'unit': '%'},
-            {'name': 'Dividend Growth (3Y)', 'unit': '%'}
-        ]
-        for metric in growth_metrics:
-            metric_data = {
-                'name': metric['name'],
-                'value': 'N/A',
-                'unit': metric['unit'],
-                'peer_values': [],
-                'industry_avg': 'N/A',
-                'is_better_than_avg': False,
-                'is_worse_than_avg': False
-            }
-            # Add placeholder peer values
-            for p in peer_symbols:
-                metric_data['peer_values'].append({'symbol': p, 'value': 'N/A'})
-            comparison_data['metrics']['growth'].append(metric_data)
-        
-        # Profitability metrics
-        profitability_metrics = [
-            {'name': 'Gross Margin', 'unit': '%'},
-            {'name': 'Operating Margin', 'unit': '%'},
-            {'name': 'Net Profit Margin', 'unit': '%'},
-            {'name': 'ROE', 'unit': '%'},
-            {'name': 'ROA', 'unit': '%'}
-        ]
-        for metric in profitability_metrics:
-            metric_data = {
-                'name': metric['name'],
-                'value': 'N/A',
-                'unit': metric['unit'],
-                'peer_values': [],
-                'industry_avg': 'N/A',
-                'is_better_than_avg': False,
-                'is_worse_than_avg': False
-            }
-            # Add placeholder peer values
-            for p in peer_symbols:
-                metric_data['peer_values'].append({'symbol': p, 'value': 'N/A'})
-            comparison_data['metrics']['profitability'].append(metric_data)
-        
-        # Financial health metrics
-        financial_health_metrics = [
-            {'name': 'Current Ratio', 'unit': ''},
-            {'name': 'Debt-to-Equity', 'unit': ''},
-            {'name': 'Interest Coverage', 'unit': 'x'},
-            {'name': 'Payout Ratio', 'unit': '%'},
-            {'name': 'Cash per Share', 'unit': '$'}
-        ]
-        for metric in financial_health_metrics:
-            metric_data = {
-                'name': metric['name'],
-                'value': 'N/A',
-                'unit': metric['unit'],
-                'peer_values': [],
-                'industry_avg': 'N/A',
-                'is_better_than_avg': False,
-                'is_worse_than_avg': False
-            }
-            # Add placeholder peer values
-            for p in peer_symbols:
-                metric_data['peer_values'].append({'symbol': p, 'value': 'N/A'})
-            comparison_data['metrics']['financial_health'].append(metric_data)
-    
-    # Initialize the chart_data structure if it doesn't exist
-    if 'chart_data' not in comparison_data:
-        comparison_data['chart_data'] = {}
-    
-    # Ensure all chart data categories exist and have proper default structures
-    chart_categories = ['valuation', 'growth', 'profitability', 'financial_health', 'performance']
-    
-    for category in chart_categories:
-        if category not in comparison_data['chart_data']:
-            comparison_data['chart_data'][category] = {
-                'metrics': [],
-                'companies': []
-            }
-    
-    # Default metrics for each category
-    default_metrics = {
-        'valuation': ['P/E', 'P/B', 'P/S', 'EV/EBITDA', 'PEG'],
-        'growth': ['Revenue (YoY)', 'Earnings (YoY)', 'Revenue (3Y)', 'Earnings (3Y)', 'Dividend (3Y)'],
-        'profitability': ['Gross Margin', 'Operating Margin', 'Net Margin', 'ROE', 'ROA'],
-        'financial_health': ['Current Ratio', 'Debt/Equity', 'Interest Coverage', 'Payout Ratio', 'Cash/Share']
-    }
-    
-    # Ensure metrics and companies exist for each chart category
-    for category in chart_categories:
-        if category != 'performance':  # Performance has special structure
-            if 'metrics' not in comparison_data['chart_data'][category] or not comparison_data['chart_data'][category]['metrics']:
-                comparison_data['chart_data'][category]['metrics'] = default_metrics.get(category, [])
-            
-            if 'companies' not in comparison_data['chart_data'][category] or not comparison_data['chart_data'][category]['companies']:
-                comparison_data['chart_data'][category]['companies'] = []
-                
-                # Add main company if not present
-                main_company = next((c for c in comparison_data['chart_data'][category].get('companies', []) 
-                                    if c.get('symbol') == symbol), None)
-                if not main_company:
-                    comparison_data['chart_data'][category]['companies'].append({
-                        'symbol': symbol,
-                        'values': [0] * len(comparison_data['chart_data'][category]['metrics'])
-                    })
-                
-                # Add peer companies if not present
-                for peer_symbol in peer_symbols:
-                    peer_company = next((c for c in comparison_data['chart_data'][category].get('companies', [])
-                                        if c.get('symbol') == peer_symbol), None)
-                    if not peer_company:
-                        comparison_data['chart_data'][category]['companies'].append({
-                            'symbol': peer_symbol,
-                            'values': [0] * len(comparison_data['chart_data'][category]['metrics'])
-                        })
-    
-    # Special handling for performance chart
-    if 'performance' in comparison_data['chart_data']:
-        if 'dates' not in comparison_data['chart_data']['performance']:
-            comparison_data['chart_data']['performance']['dates'] = []
-        
-        if 'companies' not in comparison_data['chart_data']['performance']:
-            comparison_data['chart_data']['performance']['companies'] = []
-            
-            # Add main company if not present
-            main_company = next((c for c in comparison_data['chart_data']['performance'].get('companies', [])
-                                if c.get('symbol') == symbol), None)
-            if not main_company:
-                comparison_data['chart_data']['performance']['companies'].append({
-                    'symbol': symbol,
-                    'normalized_prices': [],
-                    'absolute_prices': []
-                })
-            
-            # Add peer companies if not present
-            for peer_symbol in peer_symbols:
-                peer_company = next((c for c in comparison_data['chart_data']['performance'].get('companies', [])
-                                    if c.get('symbol') == peer_symbol), None)
-                if not peer_company:
-                    comparison_data['chart_data']['performance']['companies'].append({
-                        'symbol': peer_symbol,
-                        'normalized_prices': [],
-                        'absolute_prices': []
-                    })
-                    
-        # Ensure all companies have normalized_prices and absolute_prices
-        for company in comparison_data['chart_data']['performance'].get('companies', []):
-            if 'normalized_prices' not in company:
-                company['normalized_prices'] = []
-            if 'absolute_prices' not in company:
-                company['absolute_prices'] = []
-            
-            # Make sure these are JSON serializable (not None)
-            company['normalized_prices'] = [] if company['normalized_prices'] is None else company['normalized_prices']
-            company['absolute_prices'] = [] if company['absolute_prices'] is None else company['absolute_prices']
-    
-    # Clean up any NaN or None values that would cause JSON serialization errors
-    # Apply the nan_to_null function recursively to the entire comparison_data structure
-    comparison_data = nan_to_null(comparison_data)
-    
-    # Process any internal structures for the template
-    for key in comparison_data:
-        if isinstance(comparison_data[key], dict):
-            comparison_data[key] = nan_to_null(comparison_data[key])
-    
-    return render_template(
-        'peer_comparison.html',
-        ticker_data=ticker_data,
-        peer_data=peer_data,
-        comparison_data=comparison_data
-    )
-
-def get_comparison_data(symbols):
-    """Get comparison data for a list of symbols using yfinance"""
-    if not symbols or len(symbols) == 0:
-        return {
-            'valuation': {},
-            'growth': {},
-            'profitability': {},
-            'financial_health': {},
-            'performance': {},
-            'detailed_metrics': []
-        }
+    """Display detailed technical indicators for a stock"""
+    # Get the stock symbol from the request
+    symbol = request.args.get('symbol', 'AAPL')
+    period = request.args.get('period', '1y')
     
     try:
-        # Initialize results
-        comparison_data = {
-            'valuation': {
-                'metrics': ['P/E Ratio', 'P/B Ratio', 'P/S Ratio', 'EV/EBITDA', 'PEG Ratio'],
-                'descriptions': [
-                    'Price to Earnings ratio',
-                    'Price to Book ratio',
-                    'Price to Sales ratio',
-                    'Enterprise Value to EBITDA',
-                    'Price/Earnings to Growth ratio'
-                ],
-                'data': {}
-            },
-            'growth': {
-                'metrics': ['Revenue Growth (YoY)', 'Earnings Growth (YoY)', 'Revenue Growth (3Y)', 'Earnings Growth (3Y)', 'Dividend Growth (3Y)'],
-                'descriptions': [
-                    'Year-over-year revenue growth',
-                    'Year-over-year earnings growth',
-                    '3-year revenue growth (annualized)',
-                    '3-year earnings growth (annualized)',
-                    '3-year dividend growth (annualized)'
-                ],
-                'data': {}
-            }, 
-            'profitability': {
-                'metrics': ['Gross Margin', 'Operating Margin', 'Net Profit Margin', 'ROE', 'ROA'],
-                'descriptions': [
-                    'Gross Profit / Revenue',
-                    'Operating Income / Revenue',
-                    'Net Income / Revenue',
-                    'Return on Equity',
-                    'Return on Assets'
-                ],
-                'data': {}
-            },
-            'financial_health': {
-                'metrics': ['Current Ratio', 'Debt to Equity', 'Interest Coverage', 'Payout Ratio', 'Cash per Share'],
-                'descriptions': [
-                    'Current Assets / Current Liabilities',
-                    'Total Debt / Equity',
-                    'EBIT / Interest Expense',
-                    'Dividends / Net Income',
-                    'Cash & Equivalents / Shares Outstanding'
-                ],
-                'data': {}
-            },
-            'performance': {
-                'metrics': ['1M', '3M', '6M', '1Y', '3Y', '5Y'],
-                'descriptions': [
-                    '1-month return',
-                    '3-month return',
-                    '6-month return',
-                    '1-year return',
-                    '3-year return',
-                    '5-year return'
-                ],
-                'data': {}
-            },
-            'detailed_metrics': []
-        }
+        ticker = yf.Ticker(symbol)
+        info = ticker.info
+        company_name = info.get('shortName', symbol)
         
-        # Get data for each symbol
-        for symbol in symbols:
-            try:
-                ticker = yf.Ticker(symbol)
-                info = ticker.info
-                
-                # Valuation metrics
-                pe_ratio = info.get('trailingPE', info.get('forwardPE', None))
-                pb_ratio = info.get('priceToBook', None)
-                ps_ratio = info.get('priceToSalesTrailing12Months', None)
-                ev_ebitda = info.get('enterpriseToEbitda', None)
-                peg_ratio = info.get('pegRatio', None)
-                
-                comparison_data['valuation']['data'][symbol] = [
-                    round(pe_ratio, 2) if pe_ratio else None,
-                    round(pb_ratio, 2) if pb_ratio else None,
-                    round(ps_ratio, 2) if ps_ratio else None,
-                    round(ev_ebitda, 2) if ev_ebitda else None,
-                    round(peg_ratio, 2) if peg_ratio else None
-                ]
-                
-                # Growth metrics
-                # For these, we'll need to calculate from financial statements
-                revenue_growth_yoy = info.get('revenueGrowth', None)
-                earnings_growth_yoy = info.get('earningsGrowth', None)
-                
-                # Get financial data for 3-year calculations
-                financials = ticker.financials
-                
-                # Calculate 3-year revenue growth if we have sufficient data
-                revenue_growth_3y = None
-                earnings_growth_3y = None
-                dividend_growth_3y = None
-                
-                if financials is not None and not financials.empty and len(financials.columns) >= 3:
-                    # Revenue growth (3Y)
-                    try:
-                        recent_revenue = financials.loc['Total Revenue'].iloc[0]
-                        old_revenue = financials.loc['Total Revenue'].iloc[3]
-                        revenue_growth_3y = ((recent_revenue / old_revenue) ** (1/3) - 1) * 100
-                    except:
-                        pass
-                    
-                    # Earnings growth (3Y)
-                    try:
-                        recent_earnings = financials.loc['Net Income'].iloc[0]
-                        old_earnings = financials.loc['Net Income'].iloc[3]
-                        if old_earnings > 0 and recent_earnings > 0:
-                            earnings_growth_3y = ((recent_earnings / old_earnings) ** (1/3) - 1) * 100
-                    except:
-                        pass
-                
-                # Get dividend growth
-                dividend_history = ticker.dividends
-                if dividend_history is not None and len(dividend_history) > 0:
-                    try:
-                        # Group by year
-                        dividend_history = pd.Series(dividend_history)
-                        dividend_history.index = pd.to_datetime(dividend_history.index)
-                        annual_dividends = dividend_history.resample('Y').sum()
-                        
-                        if len(annual_dividends) >= 3:
-                            recent_div = annual_dividends.iloc[-1]
-                            old_div = annual_dividends.iloc[-3]
-                            if old_div > 0:
-                                dividend_growth_3y = ((recent_div / old_div) ** (1/3) - 1) * 100
-                    except:
-                        pass
-                
-                comparison_data['growth']['data'][symbol] = [
-                    round(revenue_growth_yoy * 100, 2) if revenue_growth_yoy else None,
-                    round(earnings_growth_yoy * 100, 2) if earnings_growth_yoy else None,
-                    round(revenue_growth_3y, 2) if revenue_growth_3y else None,
-                    round(earnings_growth_3y, 2) if earnings_growth_3y else None,
-                    round(dividend_growth_3y, 2) if dividend_growth_3y else None
-                ]
-                
-                # Profitability metrics
-                gross_margin = info.get('grossMargins', None)
-                operating_margin = info.get('operatingMargins', None)
-                profit_margin = info.get('profitMargins', None)
-                roe = info.get('returnOnEquity', None)
-                roa = info.get('returnOnAssets', None)
-                
-                comparison_data['profitability']['data'][symbol] = [
-                    round(gross_margin * 100, 2) if gross_margin else None,
-                    round(operating_margin * 100, 2) if operating_margin else None,
-                    round(profit_margin * 100, 2) if profit_margin else None,
-                    round(roe * 100, 2) if roe else None,
-                    round(roa * 100, 2) if roa else None
-                ]
-                
-                # Financial health metrics
-                current_ratio = info.get('currentRatio', None)
-                debt_to_equity = info.get('debtToEquity', None)
-                interest_coverage = None  # Need to calculate from financials
-                
-                # Try to calculate interest coverage
-                if financials is not None and not financials.empty:
-                    try:
-                        ebit = financials.loc['EBIT'].iloc[0]
-                        interest_expense = financials.loc['Interest Expense'].iloc[0]
-                        if interest_expense != 0:
-                            interest_coverage = ebit / abs(interest_expense)
-                    except:
-                        pass
-                
-                payout_ratio = info.get('payoutRatio', None)
-                
-                # Calculate cash per share
-                cash = info.get('totalCash', 0)
-                shares = info.get('sharesOutstanding', 0)
-                cash_per_share = cash / shares if shares > 0 else None
-                
-                comparison_data['financial_health']['data'][symbol] = [
-                    round(current_ratio, 2) if current_ratio else None,
-                    round(debt_to_equity, 2) if debt_to_equity else None,
-                    round(interest_coverage, 2) if interest_coverage else None,
-                    round(payout_ratio * 100, 2) if payout_ratio else None,
-                    round(cash_per_share, 2) if cash_per_share else None
-                ]
-                
-                # Performance metrics (price returns)
-                hist = ticker.history(period="5y")
-                
-                if not hist.empty:
-                    current_price = hist['Close'].iloc[-1]
-                    
-                    # Calculate returns for different periods
-                    returns = {}
-                    
-                    # 1 month return
-                    try:
-                        month_ago = hist.iloc[-22]['Close']  # ~22 trading days in a month
-                        returns['1M'] = round(((current_price / month_ago) - 1) * 100, 2)
-                    except:
-                        returns['1M'] = None
-                    
-                    # 3 month return
-                    try:
-                        three_months_ago = hist.iloc[-66]['Close']  # ~66 trading days in 3 months
-                        returns['3M'] = round(((current_price / three_months_ago) - 1) * 100, 2)
-                    except:
-                        returns['3M'] = None
-                    
-                    # 6 month return
-                    try:
-                        six_months_ago = hist.iloc[-126]['Close']  # ~126 trading days in 6 months
-                        returns['6M'] = round(((current_price / six_months_ago) - 1) * 100, 2)
-                    except:
-                        returns['6M'] = None
-                    
-                    # 1 year return
-                    try:
-                        one_year_ago = hist.iloc[-252]['Close']  # ~252 trading days in a year
-                        returns['1Y'] = round(((current_price / one_year_ago) - 1) * 100, 2)
-                    except:
-                        returns['1Y'] = None
-                    
-                    # 3 year return
-                    try:
-                        three_years_ago = hist.iloc[-756]['Close']  # ~756 trading days in 3 years
-                        returns['3Y'] = round(((current_price / three_years_ago) - 1) * 100, 2)
-                    except:
-                        returns['3Y'] = None
-                    
-                    # 5 year return
-                    try:
-                        five_years_ago = hist.iloc[0]['Close']
-                        returns['5Y'] = round(((current_price / five_years_ago) - 1) * 100, 2)
-                    except:
-                        returns['5Y'] = None
-                    
-                    # YTD return
-                    try:
-                        # Find first trading day of current year
-                        current_year = pd.Timestamp.now().year
-                        first_day = hist[hist.index.year == current_year].iloc[0]
-                        ytd_start = first_day['Close']
-                        returns['YTD'] = round(((current_price / ytd_start) - 1) * 100, 2)
-                    except:
-                        returns['YTD'] = None
-                    
-                    # Add returns to performance data
-                    comparison_data['performance']['data'][symbol] = [
-                        returns.get('1M'),
-                        returns.get('3M'),
-                        returns.get('6M'),
-                        returns.get('1Y'),
-                        returns.get('3Y'),
-                        returns.get('5Y'),
-                        returns.get('YTD')
-                    ]
-                else:
-                    # No historical data
-                    comparison_data['performance']['data'][symbol] = [None] * 7
-                
-                # Add to detailed metrics
-                detailed_metrics = {
-                    'symbol': symbol,
-                    'name': info.get('shortName', symbol),
-                    'metrics': {
-                        'valuation': {
-                            'pe_ratio': pe_ratio,
-                            'pb_ratio': pb_ratio,
-                            'ps_ratio': ps_ratio,
-                            'ev_ebitda': ev_ebitda,
-                            'peg_ratio': peg_ratio
-                        },
-                        'growth': {
-                            'revenue_growth_yoy': revenue_growth_yoy,
-                            'earnings_growth_yoy': earnings_growth_yoy,
-                            'revenue_growth_3y': revenue_growth_3y,
-                            'earnings_growth_3y': earnings_growth_3y,
-                            'dividend_growth_3y': dividend_growth_3y
-                        },
-                        'profitability': {
-                            'gross_margin': gross_margin,
-                            'operating_margin': operating_margin,
-                            'profit_margin': profit_margin,
-                            'roe': roe,
-                            'roa': roa
-                        },
-                        'financial_health': {
-                            'current_ratio': current_ratio,
-                            'debt_to_equity': debt_to_equity,
-                            'interest_coverage': interest_coverage,
-                            'payout_ratio': payout_ratio,
-                            'cash_per_share': cash_per_share
-                        },
-                        'performance': returns if 'returns' in locals() else {}
-                    }
-                }
-                
-                comparison_data['detailed_metrics'].append(detailed_metrics)
-                
-            except Exception as e:
-                print(f"Error processing comparison data for {symbol}: {e}")
-                # Continue with the next symbol
-                continue
+        # Get technical indicators
+        indicators_data = get_technical_indicators(symbol, period)
         
-        return comparison_data
+        # Clean chart_data for JSON serialization
+        chart_data = nan_to_null(indicators_data.get('chart_data', {}))
         
+        # Debug the chart data structure
+        print(f"[DEBUG] Chart data keys: {chart_data.keys()}")
+        if 'adx' in chart_data:
+            print(f"[DEBUG] ADX structure: {type(chart_data['adx'])}")
+            if isinstance(chart_data['adx'], dict):
+                for k, v in chart_data['adx'].items():
+                    print(f"[DEBUG] ADX {k}: {type(v)}, length: {len(v) if isinstance(v, list) else 'not a list'}")
+        
+        # Try to serialize to JSON with handling for string conversion errors
+        try:
+            json_str = json.dumps(chart_data)
+            chart_data_json = f"'{json_str}'"  # Wrap in single quotes as a JavaScript string literal
+            
+            # Debug the format of the first 100 chars of chart_data_json
+            print(f"[DEBUG] chart_data_json (first 100 chars): {chart_data_json[:100]}")
+            
+        except (TypeError, ValueError) as e:
+            print(f"[ERROR] Error serializing chart data: {e}")
+            # Create a minimal set of empty data
+            empty_data = {
+                'dates': [],
+                'close': [],
+                'volume': [],
+                'sma20': [], 'sma50': [], 'sma200': [],
+                'rsi': [],
+                'macd_line': [], 'macd_signal': [], 'macd_hist': [],
+                'bb_upper': [], 'bb_middle': [], 'bb_lower': [],
+                'stoch_k': [], 'stoch_d': [],
+                'atr': [],
+                'obv': [],
+                'adx': {'adx': [], 'plus_di': [], 'minus_di': []},
+                'cci': []
+            }
+            chart_data_json = f"'{json.dumps(empty_data)}'"
+        
+        return render_template('technical_indicators.html',
+                              symbol=symbol,
+                              company_name=company_name,
+                              selected_period=period,
+                              recommendation=indicators_data.get('recommendation', {'label': 'N/A', 'score': 50}),
+                              confidence=int(indicators_data.get('score', 0)),
+                              signals=[
+                                  {'indicator': k, 'signal': v.get('signal', 'N/A'), 'details': v.get('value', 'N/A')}
+                                  for k, v in indicators_data.get('signals', {}).items()
+                              ],
+                              chart_data_json=chart_data_json)
+                              
     except Exception as e:
-        print(f"Error getting comparison data: {e}")
-        # Return empty data structure
-        return {
-            'valuation': {},
-            'growth': {},
-            'profitability': {},
-            'financial_health': {},
-            'performance': {},
-            'detailed_metrics': []
-        }
-
-@app.route('/earnings_analysis')
-def earnings_analysis():
-    """
-    Display detailed earnings analysis with price reactions
-    """
-    symbol = request.args.get('symbol', '').strip()
-    
-    if not symbol:
-        flash('Please provide a stock symbol', 'danger')
-        return redirect('/')
-        
-    ticker_data = get_ticker_data(symbol)
-    earnings_data = get_earnings_data(symbol)
-    
-    # Ensure all required attributes exist for the template
-    if 'current' in earnings_data and 'current_quarter' not in earnings_data:
-        earnings_data['current_quarter'] = earnings_data['current']
-    elif 'current_quarter' not in earnings_data:
-        # Make sure current_quarter is always defined
-        earnings_data['current_quarter'] = {
-            'date': 'N/A',
-            'countdown': 0,
-            'eps_estimate': 0.0,
-            'revenue_estimate': 0.0,
-            'fiscal_quarter': 'N/A',
-            'fiscal_year': 'N/A'
-        }
-    
-    # Create revisions structure if it doesn't exist
-    if 'revisions' not in earnings_data:
-        earnings_data['revisions'] = {
-            'current_quarter': {
-                'current': 0.0,
-                'days_7': 0.0,
-                'days_30': 0.0, 
-                'days_60': 0.0,
-                'days_90': 0.0
-            },
-            'next_quarter': {
-                'current': 0.0,
-                'days_7': 0.0,
-                'days_30': 0.0,
-                'days_60': 0.0, 
-                'days_90': 0.0
-            },
-            'current_year': {
-                'current': 0.0,
-                'days_7': 0.0,
-                'days_30': 0.0,
-                'days_60': 0.0,
-                'days_90': 0.0
-            },
-            'next_year': {
-                'current': 0.0,
-                'days_7': 0.0,
-                'days_30': 0.0,
-                'days_60': 0.0,
-                'days_90': 0.0
-            }
-        }
-    
-    # Add backwards compatibility fields for the template
-    if 'current' in earnings_data:
-        earnings_data['next_earnings_date'] = earnings_data['current'].get('date', 'N/A')
-        earnings_data['days_until_next_earnings'] = earnings_data['current'].get('countdown', 0)
-        earnings_data['next_eps_estimate'] = earnings_data['current'].get('eps_estimate', 0.0)
-        earnings_data['next_revenue_estimate'] = earnings_data['current'].get('revenue_estimate', 0.0)
-        earnings_data['next_fiscal_quarter'] = earnings_data['current'].get('fiscal_quarter', 'N/A')
-    
-    # Format chart data for trend, surprise, and reaction charts
-    if 'chart_data' not in earnings_data:
-        earnings_data['chart_data'] = {
-            'dates': [],
-            'actual_eps': [],
-            'estimated_eps': [],
-            'trend': {
-                'dates': [],
-                'eps_actual': [],
-                'eps_estimate': []
-            },
-            'surprise': {
-                'dates': [],
-                'eps_surprise_pct': [],
-                'eps_estimate': [],
-                'eps_actual': []
-            },
-            'reaction': {
-                'data': []
-            }
-        }
-    else:
-        # Make sure all the required nested structures exist
-        if 'trend' not in earnings_data['chart_data']:
-            earnings_data['chart_data']['trend'] = {
-                'dates': earnings_data['chart_data'].get('dates', []),
-                'eps_actual': earnings_data['chart_data'].get('actual_eps', []),
-                'eps_estimate': earnings_data['chart_data'].get('estimated_eps', [])
-            }
-        elif isinstance(earnings_data['chart_data']['trend'], dict):
-            # Ensure all required keys exist in the trend object
-            if 'dates' not in earnings_data['chart_data']['trend']:
-                earnings_data['chart_data']['trend']['dates'] = earnings_data['chart_data'].get('dates', [])
-            if 'eps_actual' not in earnings_data['chart_data']['trend']:
-                earnings_data['chart_data']['trend']['eps_actual'] = earnings_data['chart_data'].get('actual_eps', [])
-            if 'eps_estimate' not in earnings_data['chart_data']['trend']:
-                earnings_data['chart_data']['trend']['eps_estimate'] = earnings_data['chart_data'].get('estimated_eps', [])
-        
-        if 'surprise' not in earnings_data['chart_data']:
-            earnings_data['chart_data']['surprise'] = {
-                'dates': earnings_data['chart_data'].get('dates', []),
-                'eps_surprise_pct': [],
-                'eps_estimate': earnings_data['chart_data'].get('estimated_eps', []),
-                'eps_actual': earnings_data['chart_data'].get('actual_eps', [])
-            }
-        elif isinstance(earnings_data['chart_data']['surprise'], dict):
-            # Ensure all required keys exist in the surprise object
-            if 'dates' not in earnings_data['chart_data']['surprise']:
-                earnings_data['chart_data']['surprise']['dates'] = earnings_data['chart_data'].get('dates', [])
-            if 'eps_surprise_pct' not in earnings_data['chart_data']['surprise']:
-                earnings_data['chart_data']['surprise']['eps_surprise_pct'] = []
-            if 'eps_estimate' not in earnings_data['chart_data']['surprise']:
-                earnings_data['chart_data']['surprise']['eps_estimate'] = earnings_data['chart_data'].get('estimated_eps', [])
-            if 'eps_actual' not in earnings_data['chart_data']['surprise']:
-                earnings_data['chart_data']['surprise']['eps_actual'] = earnings_data['chart_data'].get('actual_eps', [])
-            
-            # Calculate surprise percentages if we have the data and no existing surprise_pct
-            if (not earnings_data['chart_data']['surprise']['eps_surprise_pct'] and
-                len(earnings_data['chart_data'].get('estimated_eps', [])) > 0 and 
-                len(earnings_data['chart_data'].get('actual_eps', [])) > 0 and
-                len(earnings_data['chart_data'].get('estimated_eps', [])) == len(earnings_data['chart_data'].get('actual_eps', []))):
-                
-                earnings_data['chart_data']['surprise']['eps_surprise_pct'] = [
-                    round(((actual - estimate) / abs(estimate) * 100) if estimate != 0 and estimate is not None else 0, 2)
-                    for actual, estimate in zip(
-                        earnings_data['chart_data'].get('actual_eps', []),
-                        earnings_data['chart_data'].get('estimated_eps', [])
-                    )
-                ]
-        
-        if 'reaction' not in earnings_data['chart_data']:
-            earnings_data['chart_data']['reaction'] = {
-                'data': []
-            }
-        elif isinstance(earnings_data['chart_data']['reaction'], dict):
-            # Ensure data key exists in reaction
-            if 'data' not in earnings_data['chart_data']['reaction']:
-                earnings_data['chart_data']['reaction']['data'] = []
-                
-            # Try to build reaction data from history if available
-            if not earnings_data['chart_data']['reaction']['data'] and 'history' in earnings_data and earnings_data['history']:
-                for quarter in earnings_data['history']:
-                    if ('eps' in quarter and 
-                        quarter['eps'].get('surprise_pct') is not None and
-                        'price_reaction' in quarter and
-                        quarter['price_reaction'].get('1d') is not None):
-                        
-                        earnings_data['chart_data']['reaction']['data'].append({
-                            'date': quarter.get('date', ''),
-                            'fiscal_quarter': quarter.get('fiscal_quarter', ''),
-                            'eps_surprise_pct': quarter['eps'].get('surprise_pct', 0),
-                            'price_reaction': quarter['price_reaction'].get('1d', 0),
-                            'eps_estimate': quarter['eps'].get('estimate', 0),
-                            'eps_actual': quarter['eps'].get('actual', 0)
-                        })
-            
-            # Ensure each reaction data item has all required keys
-            if earnings_data['chart_data']['reaction']['data']:
-                for i in range(len(earnings_data['chart_data']['reaction']['data'])):
-                    data_item = earnings_data['chart_data']['reaction']['data'][i]
-                    if not isinstance(data_item, dict):
-                        # Replace with a properly structured object if it's not a dict
-                        earnings_data['chart_data']['reaction']['data'][i] = {
-                            'date': '',
-                            'fiscal_quarter': '',
-                            'eps_surprise_pct': 0,
-                            'price_reaction': 0,
-                            'eps_estimate': 0,
-                            'eps_actual': 0
-                        }
-                    else:
-                        # Ensure all required keys exist
-                        for key in ['date', 'fiscal_quarter', 'eps_surprise_pct', 'price_reaction', 'eps_estimate', 'eps_actual']:
-                            if key not in data_item:
-                                data_item[key] = '' if key in ['date', 'fiscal_quarter'] else 0
-    
-    return render_template(
-        'earnings_analysis.html',
-        ticker_data=ticker_data,
-        earnings_data=earnings_data
-    )
+        print(f"Error in technical_indicators route: {e}")
+        traceback.print_exc()
+        # Return a basic template with error message
+        return render_template('technical_indicators.html',
+                              symbol=symbol,
+                              company_name=symbol,
+                              selected_period=period,
+                              recommendation={'label': 'Error', 'score': 0},
+                              confidence=0,
+                              signals=[{'indicator': 'Error', 'signal': 'Data Error', 'details': str(e)}],
+                              chart_data_json="'{}'")  # Empty JSON object as string literal
 
 @app.route('/risk_assessment')
 def risk_assessment():
@@ -1989,887 +1218,6 @@ def get_news_sentiment(symbol):
             }
         }
 
-def get_technical_indicators(symbol):
-    """Get technical indicators for a symbol using yfinance"""
-    try:
-        # Get historical data for calculations
-        ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="2y")
-        
-        if hist.empty:
-            # Return structure matching expected output but with empty/default values
-            return {
-                'recommendation': {'label': 'N/A', 'score': 50},
-                'confidence': 0,
-                'signals': {},
-                'latest_values': {},
-                'chart_data': {
-                    'dates': [], 'close': [], 'volume': [],
-                    'sma20': [], 'sma50': [], 'sma200': [],
-                    'ema12': [], 'ema26': [], 'ema50': [],
-                    'rsi': [],
-                    'macd_line': [], 'macd_signal': [], 'macd_hist': [],
-                    'bb_upper': [], 'bb_middle': [], 'bb_lower': [],
-                    'stoch_k': [], 'stoch_d': [],
-                    'atr': [],
-                    'obv': []
-                }
-            }
-            
-        # Prepare data
-        df = hist.copy()
-        
-        # --- Calculation Functions --- 
-        def calculate_rsi(data, window=14):
-            delta = data.diff()
-            gain = delta.mask(delta < 0, 0)
-            loss = -delta.mask(delta > 0, 0)
-            # Use .ewm for smoother RSI commonly used in platforms
-            avg_gain = gain.ewm(com=window-1, min_periods=window).mean()
-            avg_loss = loss.ewm(com=window-1, min_periods=window).mean()
-            rs = avg_gain / avg_loss
-            if avg_loss.eq(0).any(): # Avoid division by zero
-                 # Handle cases where loss is zero (e.g., all gains)
-                 rsi = pd.Series(np.where(avg_loss == 0, 100, 100 - (100 / (1 + rs))), index=data.index)
-            else:
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
-            return rsi
-        
-        def calculate_macd(data, fast=12, slow=26, signal=9):
-            ema_fast = data.ewm(span=fast, adjust=False).mean()
-            ema_slow = data.ewm(span=slow, adjust=False).mean()
-            macd_line = ema_fast - ema_slow
-            signal_line = macd_line.ewm(span=signal, adjust=False).mean()
-            histogram = macd_line - signal_line
-            return macd_line, signal_line, histogram
-        
-        def calculate_bollinger(data, window=20, num_std=2):
-            sma = data.rolling(window=window).mean()
-            std = data.rolling(window=window).std()
-            upper_band = sma + (std * num_std)
-            lower_band = sma - (std * num_std)
-            return upper_band, sma, lower_band # Return middle band (sma) too
-        
-        def calculate_stochastic(data_df, k_window=14, d_window=3):
-            low_min = data_df['Low'].rolling(window=k_window).min()
-            high_max = data_df['High'].rolling(window=k_window).max()
-            # %K = (Current Close - Lowest Low)/(Highest High - Lowest Low) * 100
-            k = 100 * ((data_df['Close'] - low_min) / (high_max - low_min).replace(0, np.nan)) # Avoid division by zero
-            # %D = 3-day SMA of %K
-            d = k.rolling(window=d_window).mean()
-            return k, d
-        
-        def calculate_atr(data_df, window=14):
-            high_low = data_df['High'] - data_df['Low']
-            high_close = (data_df['High'] - data_df['Close'].shift()).abs()
-            low_close = (data_df['Low'] - data_df['Close'].shift()).abs()
-            tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-            # Use Exponential Moving Average for ATR as is common
-            atr = tr.ewm(span=window, adjust=False).mean() # Use span instead of alpha for consistency
-            return atr
-        
-        def calculate_obv(data_df):
-            obv = (np.sign(data_df['Close'].diff()) * data_df['Volume']).fillna(0).cumsum()
-            return obv
-        # --- End Calculation Functions --- 
-        
-        # Calculate All Indicators & Add to DataFrame
-        df['sma20'] = df['Close'].rolling(window=20).mean()
-        df['sma50'] = df['Close'].rolling(window=50).mean()
-        df['sma200'] = df['Close'].rolling(window=200).mean()
-        df['ema12'] = df['Close'].ewm(span=12, adjust=False).mean()
-        df['ema26'] = df['Close'].ewm(span=26, adjust=False).mean()
-        df['ema50'] = df['Close'].ewm(span=50, adjust=False).mean()
-        df['rsi'] = calculate_rsi(df['Close'])
-        df['macd_line'], df['macd_signal'], df['macd_hist'] = calculate_macd(df['Close'])
-        df['bb_upper'], df['bb_middle'], df['bb_lower'] = calculate_bollinger(df['Close'])
-        df['stoch_k'], df['stoch_d'] = calculate_stochastic(df)
-        df['atr'] = calculate_atr(df)
-        df['obv'] = calculate_obv(df)
-        
-        # Prepare chart data (last 180 days)
-        chart_df = df.iloc[-180:].copy()
-        
-        # Ensure safe conversion for JSON (using helper function)
-        chart_data = {
-            'dates': chart_df.index.strftime('%Y-%m-%d').tolist(),
-            'close': [safe_chart_val(v) for v in chart_df['Close']],
-            'volume': [safe_chart_val(v) for v in chart_df['Volume']],
-            'sma20': [safe_chart_val(v) for v in chart_df['sma20']],
-            'sma50': [safe_chart_val(v) for v in chart_df['sma50']],
-            'sma200': [safe_chart_val(v) for v in chart_df['sma200']],
-            'ema12': [safe_chart_val(v) for v in chart_df['ema12']],
-            'ema26': [safe_chart_val(v) for v in chart_df['ema26']],
-            'ema50': [safe_chart_val(v) for v in chart_df['ema50']],
-            'rsi': [safe_chart_val(v) for v in chart_df['rsi']],
-            'macd_line': [safe_chart_val(v) for v in chart_df['macd_line']],
-            'macd_signal': [safe_chart_val(v) for v in chart_df['macd_signal']],
-            'macd_hist': [safe_chart_val(v) for v in chart_df['macd_hist']],
-            'bb_upper': [safe_chart_val(v) for v in chart_df['bb_upper']],
-            'bb_middle': [safe_chart_val(v) for v in chart_df['bb_middle']],
-            'bb_lower': [safe_chart_val(v) for v in chart_df['bb_lower']],
-            'stoch_k': [safe_chart_val(v) for v in chart_df['stoch_k']],
-            'stoch_d': [safe_chart_val(v) for v in chart_df['stoch_d']],
-            'atr': [safe_chart_val(v) for v in chart_df['atr']],
-            'obv': [safe_chart_val(v) for v in chart_df['obv']],
-        }
-        
-        # --- Signal Generation, Recommendation, Latest Values --- 
-        latest = df.iloc[-1]
-        latest_values = {
-            'close': safe_chart_val(latest.get('Close')),
-            'volume': latest.get('Volume'),
-            'sma20': safe_chart_val(latest.get('sma20')),
-            'sma50': safe_chart_val(latest.get('sma50')),
-            'sma200': safe_chart_val(latest.get('sma200')),
-            'ema12': safe_chart_val(latest.get('ema12')),
-            'ema26': safe_chart_val(latest.get('ema26')),
-            'ema50': safe_chart_val(latest.get('ema50')),
-            'rsi': safe_chart_val(latest.get('rsi')),
-            'macd_line': safe_chart_val(latest.get('macd_line')),
-            'macd_signal': safe_chart_val(latest.get('macd_signal')),
-            'macd_hist': safe_chart_val(latest.get('macd_hist')),
-            'bb_upper': safe_chart_val(latest.get('bb_upper')),
-            'bb_middle': safe_chart_val(latest.get('bb_middle')),
-            'bb_lower': safe_chart_val(latest.get('bb_lower')),
-            'stoch_k': safe_chart_val(latest.get('stoch_k')),
-            'stoch_d': safe_chart_val(latest.get('stoch_d')),
-            'atr': safe_chart_val(latest.get('atr')),
-            'obv': latest.get('obv')
-        }
-
-        signals = {}
-        # RSI
-        rsi_val = latest_values.get('rsi')
-        if rsi_val is not None:
-            if rsi_val > 70:
-                signals['RSI'] = 'Overbought'
-            elif rsi_val < 30:
-                signals['RSI'] = 'Oversold'
-            else:
-                signals['RSI'] = 'Neutral'
-        
-        # MACD Crossover & Level
-        macd_line_val = latest_values.get('macd_line')
-        macd_signal_val = latest_values.get('macd_signal')
-        if macd_line_val is not None and macd_signal_val is not None and len(df) > 1:
-            prev = df.iloc[-2]
-            prev_macd_line = safe_chart_val(prev.get('macd_line'))
-            prev_macd_signal = safe_chart_val(prev.get('macd_signal'))
-            if (prev_macd_line is not None and prev_macd_signal is not None):
-                if (macd_line_val > macd_signal_val and prev_macd_line <= prev_macd_signal):
-                    signals['MACD'] = 'Bullish Crossover'
-                elif (macd_line_val < macd_signal_val and prev_macd_line >= prev_macd_signal):
-                    signals['MACD'] = 'Bearish Crossover'
-                elif macd_line_val > 0 and macd_signal_val > 0:
-                     signals['MACD'] = 'Bullish'
-                elif macd_line_val < 0 and macd_signal_val < 0:
-                     signals['MACD'] = 'Bearish'
-                else:
-                     signals['MACD'] = 'Neutral'
-            else: # Fallback if previous data missing
-                 signals['MACD'] = 'Neutral'
-        else:
-             signals['MACD'] = 'N/A'
-
-        # SMA Trend (SMA50 vs SMA200)
-        sma50_val = latest_values.get('sma50')
-        sma200_val = latest_values.get('sma200')
-        if sma50_val is not None and sma200_val is not None:
-            if sma50_val > sma200_val:
-                signals['SMA Trend'] = 'Bullish' # Golden Cross pattern
-            elif sma50_val < sma200_val:
-                signals['SMA Trend'] = 'Bearish' # Death Cross pattern
-            else:
-                signals['SMA Trend'] = 'Neutral'
-        else:
-             signals['SMA Trend'] = 'N/A'
-
-        # Price vs SMA20 (Short-term)
-        close_val = latest_values.get('close')
-        sma20_val = latest_values.get('sma20')
-        if close_val is not None and sma20_val is not None:
-            if close_val > sma20_val:
-                 signals['Price vs SMA20'] = 'Above'
-            elif close_val < sma20_val:
-                 signals['Price vs SMA20'] = 'Below'
-            else:
-                 signals['Price vs SMA20'] = 'Neutral'
-        else:
-             signals['Price vs SMA20'] = 'N/A'
-            
-        # Bollinger Bands
-        bb_upper_val = latest_values.get('bb_upper')
-        bb_lower_val = latest_values.get('bb_lower')
-        if close_val is not None and bb_upper_val is not None and bb_lower_val is not None:
-            if close_val > bb_upper_val:
-                signals['Bollinger Bands'] = 'Overbought'
-            elif close_val < bb_lower_val:
-                signals['Bollinger Bands'] = 'Oversold'
-            else:
-                signals['Bollinger Bands'] = 'Neutral'
-        else:
-             signals['Bollinger Bands'] = 'N/A'
-            
-        # Stochastic
-        stoch_k_val = latest_values.get('stoch_k')
-        stoch_d_val = latest_values.get('stoch_d')
-        if stoch_k_val is not None and stoch_d_val is not None:
-            if stoch_k_val > 80 and stoch_d_val > 80:
-                signals['Stochastic'] = 'Overbought'
-            elif stoch_k_val < 20 and stoch_d_val < 20:
-                signals['Stochastic'] = 'Oversold'
-            # Add crossover logic for Stochastic if desired
-            # elif k crosses above d and both are below 20 (Buy signal)
-            # elif k crosses below d and both are above 80 (Sell signal)
-            else:
-                signals['Stochastic'] = 'Neutral'
-        else:
-            signals['Stochastic'] = 'N/A'
-            
-        # OBV Trend (Check if OBV is above its recent MA)
-        if len(df) > 10:
-             obv_ma = df['obv'].iloc[-10:].mean()
-             latest_obv = latest_values.get('obv')
-             if latest_obv is not None:
-                 if latest_obv > obv_ma:
-                     signals['OBV Trend'] = 'Increasing'
-                 elif latest_obv < obv_ma:
-                     signals['OBV Trend'] = 'Decreasing'
-                 else:
-                     signals['OBV Trend'] = 'Neutral'
-             else:
-                  signals['OBV Trend'] = 'N/A'
-        else:
-             signals['OBV Trend'] = 'N/A'
-        
-        # Calculate Score & Recommendation based on collected signals
-        score_points = {
-            'Bullish': 10, 'Bullish Crossover': 15, 'Above': 5, 'Increasing': 5,
-            'Bearish': -10, 'Bearish Crossover': -15, 'Below': -5, 'Decreasing': -5,
-            'Neutral': 0,
-            'Overbought': -8, # Stronger negative signal than Oversold positive
-            'Oversold': 8,
-            'N/A': 0
-        }
-        total_score_adj = 0
-        valid_signal_count = 0
-        for signal_type in signals.values():
-            if signal_type != 'N/A':
-                total_score_adj += score_points.get(signal_type, 0)
-                valid_signal_count += 1
-            
-        # Normalize score to 0-100 range (centering around 50)
-        # Max possible points swing depends on the signals generated
-        max_possible_points = valid_signal_count * 15 # Approx max deviation (using 15 from crossover)
-        if valid_signal_count > 0 and max_possible_points > 0:
-            # Scale the adjustment to fit roughly within +/- 50
-            scaled_adjustment = (total_score_adj / max_possible_points) * 50 
-            technical_score = round(50 + scaled_adjustment)
-        else:
-            technical_score = 50 # Default to neutral if no valid signals
-            
-        technical_score = max(0, min(100, technical_score)) # Clamp to 0-100
-        
-        # Map score to recommendation label
-        if technical_score >= 75:
-            rec_label = 'Strong Buy'
-        elif technical_score >= 60:
-             rec_label = 'Buy'
-        elif technical_score <= 25:
-             rec_label = 'Strong Sell'
-        elif technical_score <= 40:
-             rec_label = 'Sell'
-        else:
-            rec_label = 'Hold'
-            
-        recommendation = {'label': rec_label, 'score': technical_score}
-        
-        # Confidence Score (based on number of non-neutral/non-N/A signals)
-        strong_signal_count = sum(1 for s in signals.values() if s not in ['Neutral', 'N/A'])
-        confidence = round((strong_signal_count / valid_signal_count) * 100) if valid_signal_count > 0 else 0
-        confidence = min(confidence + 10, 100) # Add a small base confidence
-
-        # Prepare chart data (already done in previous step)
-        # ... chart_data = {...} ...
-        # --- End Signal Generation --- 
-
-        return {
-            'recommendation': recommendation,
-            'confidence': confidence,
-            'signals': signals,
-            'latest_values': latest_values, 
-            'chart_data': chart_data
-        }
-
-    except Exception as e:
-        print(f"Error getting technical indicators for {symbol}: {e}")
-        # Return default empty structure matching the new format
-        return {
-            'recommendation': {'label': 'N/A', 'score': 50},
-            'confidence': 0,
-            'signals': {},
-            'latest_values': {},
-            'chart_data': {
-                'dates': [], 'close': [], 'volume': [],
-                'sma20': [], 'sma50': [], 'sma200': [],
-                'ema12': [], 'ema26': [], 'ema50': [],
-                'rsi': [],
-                'macd_line': [], 'macd_signal': [], 'macd_hist': [],
-                'bb_upper': [], 'bb_middle': [], 'bb_lower': [],
-                'stoch_k': [], 'stoch_d': [],
-                'atr': [],
-                'obv': []
-            }
-        }
-
-def get_earnings_data(symbol):
-    """Get earnings data for a symbol using yfinance"""
-    try:
-        ticker = yf.Ticker(symbol)
-        
-        # Get earnings data
-        earnings = ticker.earnings
-        earnings_dates = ticker.earnings_dates
-        calendar = ticker.calendar
-        
-        # Initialize response
-        response = {
-            'current': {
-                'date': 'N/A',
-                'countdown': 0,
-                'eps_estimate': 0.0,
-                'revenue_estimate': 0.0,
-                'fiscal_quarter': 'N/A',
-                'fiscal_year': 'N/A'
-            },
-            'current_quarter': {  # Add current_quarter directly in the structure
-                'date': 'N/A',
-                'countdown': 0,
-                'eps_estimate': 0.0,
-                'revenue_estimate': 0.0,
-                'fiscal_quarter': 'N/A',
-                'fiscal_year': 'N/A'
-            },
-            'history': [],
-            'chart_data': {
-                'dates': [],
-                'actual_eps': [],
-                'estimated_eps': []
-            },
-            'price_reaction': {
-                'dates': [],
-                'price_changes': []
-            },
-            'revisions': {
-                'current_quarter': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0,
-                    'days_90': 0.0
-                },
-                'next_quarter': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0, 
-                    'days_90': 0.0
-                },
-                'current_year': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0,
-                    'days_90': 0.0
-                },
-                'next_year': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0,
-                    'days_90': 0.0
-                }
-            }
-        }
-        
-        # Check if we have any earnings data
-        if earnings is None or earnings.empty:
-            return response
-        
-        # Process earnings history
-        history = []
-        dates = []
-        actual_eps = []
-        estimated_eps = []
-        price_reaction_dates = []
-        price_reaction_changes = []
-        
-        # Get price history to calculate reactions
-        price_history = ticker.history(period="2y")
-        
-        # Process earnings dates data if available
-        if earnings_dates is not None and not earnings_dates.empty:
-            for index, row in earnings_dates.iterrows():
-                date_str = index.strftime('%Y-%m-%d')
-                
-                # Get EPS data
-                eps_actual = row.get('Reported EPS', None)
-                eps_estimate = row.get('EPS Estimate', None)
-                
-                if eps_actual is not None and eps_estimate is not None:
-                    eps_surprise = eps_actual - eps_estimate
-                    eps_surprise_pct = (eps_surprise / abs(eps_estimate) * 100) if eps_estimate != 0 else 0
-                else:
-                    eps_surprise = None
-                    eps_surprise_pct = None
-                
-                # Calculate price reaction (1 day and 5 day)
-                price_change_1d = None
-                price_change_5d = None
-                
-                try:
-                    # Find the earnings announcement date in price history
-                    if index in price_history.index:
-                        # Get the price on announcement day and days after
-                        announcement_price = price_history.loc[index, 'Close']
-                        
-                        # Find the next trading day
-                        next_days = price_history.loc[price_history.index > index]
-                        if not next_days.empty:
-                            next_day_price = next_days.iloc[0]['Close']
-                            price_change_1d = round(((next_day_price / announcement_price) - 1) * 100, 2)
-                            
-                            # Find 5 trading days later if available
-                            if len(next_days) >= 5:
-                                day5_price = next_days.iloc[4]['Close']
-                                price_change_5d = round(((day5_price / announcement_price) - 1) * 100, 2)
-                except Exception:
-                    pass
-                
-                # Get revenue data if available
-                revenue_actual = row.get('Reported Revenue', None)
-                revenue_estimate = row.get('Revenue Estimate', None)
-                
-                if revenue_actual is not None and revenue_estimate is not None:
-                    revenue_surprise = revenue_actual - revenue_estimate
-                    revenue_surprise_pct = (revenue_surprise / abs(revenue_estimate) * 100) if revenue_estimate != 0 else 0
-                else:
-                    revenue_surprise = None
-                    revenue_surprise_pct = None
-                
-                # Create entry
-                entry = {
-                    'date': date_str,
-                    'fiscal_quarter': f"Q{(index.month-1)//3 + 1} {index.year}",
-                    'eps': {
-                        'actual': None if eps_actual is None else round(eps_actual, 2),
-                        'estimate': None if eps_estimate is None else round(eps_estimate, 2),
-                        'surprise': None if eps_surprise is None else round(eps_surprise, 2),
-                        'surprise_pct': None if eps_surprise_pct is None else round(eps_surprise_pct, 2)
-                    },
-                    'revenue': {
-                        'actual': None if revenue_actual is None else round(revenue_actual / 1e6, 2),
-                        'estimate': None if revenue_estimate is None else round(revenue_estimate / 1e6, 2),
-                        'surprise': None if revenue_surprise is None else round(revenue_surprise / 1e6, 2),
-                        'surprise_pct': None if revenue_surprise_pct is None else round(revenue_surprise_pct, 2)
-                    },
-                    'price_reaction': {
-                        '1d': price_change_1d,
-                        '5d': price_change_5d
-                    }
-                }
-                
-                history.append(entry)
-                
-                # Add to chart data
-                if eps_actual is not None and eps_estimate is not None:
-                    dates.append(date_str)
-                    actual_eps.append(round(eps_actual, 2))
-                    estimated_eps.append(round(eps_estimate, 2))
-                
-                # Add to price reaction data
-                if price_change_1d is not None:
-                    price_reaction_dates.append(date_str)
-                    price_reaction_changes.append(price_change_1d)
-        
-        # Sort history by date (most recent first)
-        history = sorted(history, key=lambda x: x['date'], reverse=True)
-        
-        # Get upcoming earnings information
-        if calendar is not None and not calendar.empty:
-            try:
-                # Get the upcoming earnings date
-                earnings_date = calendar.iloc[0].name
-                
-                # Calculate countdown
-                today = pd.Timestamp.now().normalize()
-                days_until = (earnings_date - today).days
-                
-                # Format fiscal quarter
-                quarter = f"Q{(earnings_date.month-1)//3 + 1}"
-                fiscal_year = str(earnings_date.year)
-                
-                # Get estimates
-                eps_estimate = calendar.iloc[0].get('EPS Estimate', 0)
-                if pd.isna(eps_estimate):
-                    eps_estimate = 0.0
-                    
-                revenue_estimate = calendar.iloc[0].get('Revenue Estimate', 0)
-                if pd.isna(revenue_estimate):
-                    revenue_estimate = 0.0
-                
-                # Update current earnings info
-                current_info = {
-                    'date': earnings_date.strftime('%Y-%m-%d'),
-                    'countdown': days_until,
-                    'eps_estimate': round(eps_estimate, 2),
-                    'revenue_estimate': round(revenue_estimate / 1e6, 2),  # Convert to millions
-                    'fiscal_quarter': quarter,
-                    'fiscal_year': fiscal_year
-                }
-                
-                # Update both current and current_quarter with the same data
-                response['current'] = current_info
-                response['current_quarter'] = current_info
-            except Exception:
-                # Keep default values if there's an error
-                pass
-        
-        # Get analyst revisions (this is a simplified version)
-        # In a real implementation, you'd want to track revisions over time
-        revisions_dates = []
-        revisions_values = []
-        
-        try:
-            # Get recommendations as a proxy for revisions
-            recommendations = ticker.recommendations
-            
-            if recommendations is not None and not recommendations.empty:
-                # Group by month and count upgrades/downgrades
-                recommendations['month'] = recommendations.index.to_period('M')
-                monthly_counts = recommendations.groupby('month').size()
-                
-                for month, count in monthly_counts.items():
-                    # Use the month's midpoint as the date
-                    date_str = month.to_timestamp().strftime('%Y-%m-%d')
-                    revisions_dates.append(date_str)
-                    revisions_values.append(count)
-        except Exception:
-            # Ignore errors with revisions
-            pass
-            
-        # Update the response
-        response['history'] = history
-        response['chart_data'] = {
-            'dates': dates,
-            'actual_eps': actual_eps,
-            'estimated_eps': estimated_eps,
-            'trend': {
-                'dates': dates,
-                'eps_actual': actual_eps,
-                'eps_estimate': estimated_eps
-            },
-            'surprise': {
-                'dates': dates,
-                'eps_surprise_pct': [],
-                'eps_estimate': estimated_eps,
-                'eps_actual': actual_eps
-            },
-            'reaction': {
-                'data': []
-            }
-        }
-        
-        # Calculate surprise percentages if we have the data
-        if (len(estimated_eps) > 0 and len(actual_eps) > 0 and len(estimated_eps) == len(actual_eps)):
-            eps_surprise_pct = [
-                round(((actual - estimate) / abs(estimate) * 100) if estimate != 0 else 0, 2)
-                for actual, estimate in zip(actual_eps, estimated_eps)
-            ]
-            response['chart_data']['surprise']['eps_surprise_pct'] = eps_surprise_pct
-        
-        # Create reaction data from history if available
-        if history:
-            for quarter in history:
-                if ('eps' in quarter and 
-                    quarter['eps'].get('surprise_pct') is not None and
-                    'price_reaction' in quarter and
-                    quarter['price_reaction'].get('1d') is not None):
-                    
-                    response['chart_data']['reaction']['data'].append({
-                        'date': quarter.get('date', ''),
-                        'fiscal_quarter': quarter.get('fiscal_quarter', ''),
-                        'eps_surprise_pct': quarter['eps'].get('surprise_pct', 0),
-                        'price_reaction': quarter['price_reaction'].get('1d', 0),
-                        'eps_estimate': quarter['eps'].get('estimate', 0),
-                        'eps_actual': quarter['eps'].get('actual', 0)
-                    })
-        
-        response['price_reaction'] = {
-            'dates': price_reaction_dates,
-            'price_changes': price_reaction_changes
-        }
-        response['revisions'] = {
-            'dates': revisions_dates,
-            'values': revisions_values,
-            'current_quarter': {
-                'current': round(eps_estimate, 2) if not pd.isna(eps_estimate) else 0.0,
-                'days_7': round(eps_estimate * 0.98, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_30': round(eps_estimate * 0.95, 2) if not pd.isna(eps_estimate) else 0.0, # Fake data
-                'days_60': round(eps_estimate * 0.92, 2) if not pd.isna(eps_estimate) else 0.0, # Fake data
-                'days_90': round(eps_estimate * 0.90, 2) if not pd.isna(eps_estimate) else 0.0  # Fake data
-            },
-            'next_quarter': {
-                'current': round(eps_estimate * 1.1, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_7': round(eps_estimate * 1.08, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_30': round(eps_estimate * 1.05, 2) if not pd.isna(eps_estimate) else 0.0, # Fake data
-                'days_60': round(eps_estimate * 1.02, 2) if not pd.isna(eps_estimate) else 0.0, # Fake data
-                'days_90': round(eps_estimate, 2) if not pd.isna(eps_estimate) else 0.0        # Fake data
-            },
-            'current_year': {
-                'current': round(eps_estimate * 4.1, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_7': round(eps_estimate * 4.0, 2) if not pd.isna(eps_estimate) else 0.0,   # Fake data
-                'days_30': round(eps_estimate * 3.9, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_60': round(eps_estimate * 3.8, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_90': round(eps_estimate * 3.7, 2) if not pd.isna(eps_estimate) else 0.0   # Fake data
-            },
-            'next_year': {
-                'current': round(eps_estimate * 5.1, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_7': round(eps_estimate * 5.0, 2) if not pd.isna(eps_estimate) else 0.0,   # Fake data
-                'days_30': round(eps_estimate * 4.9, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_60': round(eps_estimate * 4.8, 2) if not pd.isna(eps_estimate) else 0.0,  # Fake data
-                'days_90': round(eps_estimate * 4.7, 2) if not pd.isna(eps_estimate) else 0.0   # Fake data
-            }
-        }
-        
-        # Add backwards compatibility fields
-        response['next_earnings_date'] = response['current'].get('date', 'N/A')
-        response['days_until_next_earnings'] = response['current'].get('countdown', 0)
-        response['next_eps_estimate'] = response['current'].get('eps_estimate', 0.0)
-        response['next_revenue_estimate'] = response['current'].get('revenue_estimate', 0.0)
-        response['next_fiscal_quarter'] = response['current'].get('fiscal_quarter', 'N/A')
-        
-        return response
-        
-    except Exception as e:
-        print(f"Error getting earnings data for {symbol}: {e}")
-        # Return default structure with both current and current_quarter
-        return {
-            'current': {
-                'date': 'N/A',
-                'countdown': 0,
-                'eps_estimate': 0.0,
-                'revenue_estimate': 0.0,
-                'fiscal_quarter': 'N/A',
-                'fiscal_year': 'N/A'
-            },
-            'current_quarter': {  # Make sure current_quarter exists
-                'date': 'N/A',
-                'countdown': 0,
-                'eps_estimate': 0.0,
-                'revenue_estimate': 0.0,
-                'fiscal_quarter': 'N/A',
-                'fiscal_year': 'N/A'
-            },
-            'history': [],
-            'chart_data': {
-                'dates': [],
-                'actual_eps': [],
-                'estimated_eps': [],
-                'trend': {
-                    'dates': [],
-                    'eps_actual': [],
-                    'eps_estimate': []
-                },
-                'surprise': {
-                    'dates': [],
-                    'eps_surprise_pct': [],
-                    'eps_estimate': [],
-                    'eps_actual': []
-                },
-                'reaction': {
-                    'data': []
-                }
-            },
-            'price_reaction': {
-                'dates': [],
-                'price_changes': []
-            },
-            'revisions': {
-                'dates': [],
-                'values': [],
-                'current_quarter': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0,
-                    'days_90': 0.0
-                },
-                'next_quarter': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0,
-                    'days_90': 0.0
-                },
-                'current_year': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0,
-                    'days_90': 0.0
-                },
-                'next_year': {
-                    'current': 0.0,
-                    'days_7': 0.0,
-                    'days_30': 0.0,
-                    'days_60': 0.0,
-                    'days_90': 0.0
-                }
-            },
-            'next_earnings_date': 'N/A',
-            'days_until_next_earnings': 0,
-            'next_eps_estimate': 0.0,
-            'next_revenue_estimate': 0.0,
-            'next_fiscal_quarter': 'N/A'
-        }
-
-def get_peer_data(symbol):
-    """Get peer comparison data for a symbol using yfinance"""
-    try:
-        ticker = yf.Ticker(symbol)
-        info = ticker.info
-        
-        # Get industry and sector
-        industry = info.get('industry', 'N/A')
-        sector = info.get('sector', 'N/A')
-        
-        # Find peers by searching for companies in same industry
-        peer_symbols = []
-        
-        # Add some default major companies by sector as fallback
-        default_peers = {
-            'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN'],
-            'Healthcare': ['JNJ', 'PFE', 'MRK', 'UNH', 'ABBV'],
-            'Financial Services': ['JPM', 'BAC', 'WFC', 'C', 'GS'],
-            'Communication Services': ['GOOGL', 'META', 'VZ', 'T', 'CMCSA'],
-            'Consumer Cyclical': ['AMZN', 'HD', 'NKE', 'MCD', 'SBUX'],
-            'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST'],
-            'Industrials': ['HON', 'UNP', 'UPS', 'CAT', 'GE'],
-            'Basic Materials': ['LIN', 'ECL', 'SHW', 'APD', 'NEM'],
-            'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG'],
-            'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP'],
-            'Real Estate': ['AMT', 'PLD', 'CCI', 'PSA', 'EQIX']
-        }
-        
-        # Use info.get('recommendedSymbols') if available or fall back to default peers
-        if 'recommendedSymbols' in info and info['recommendedSymbols']:
-            peer_symbols = info['recommendedSymbols'][:5]  # Get up to 5 recommended symbols
-        else:
-            # Use default peers based on sector
-            peer_symbols = default_peers.get(sector, ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'JPM'])
-        
-        # Make sure the original symbol is not in the peer list
-        if symbol in peer_symbols:
-            peer_symbols.remove(symbol)
-            
-        # Ensure we have at most 5 peers
-        peer_symbols = peer_symbols[:5]
-        
-        # Add the original symbol to the beginning
-        all_symbols = [symbol] + peer_symbols
-        
-        # Fetch data for all symbols
-        peers_data = []
-        
-        for sym in all_symbols:
-            try:
-                peer_ticker = yf.Ticker(sym)
-                peer_info = peer_ticker.info
-                
-                # Get basic info
-                name = peer_info.get('shortName', sym)
-                
-                # Format market cap
-                market_cap = peer_info.get('marketCap', 0)
-                if market_cap > 1e12:
-                    market_cap_str = f"${market_cap/1e12:.2f}T"
-                elif market_cap > 1e9:
-                    market_cap_str = f"${market_cap/1e9:.2f}B"
-                elif market_cap > 1e6:
-                    market_cap_str = f"${market_cap/1e6:.2f}M"
-                else:
-                    market_cap_str = f"${market_cap:.2f}"
-                
-                # Get current price and calculate 1Y return
-                price = peer_info.get('currentPrice', peer_info.get('regularMarketPrice', 0))
-                
-                # Get price history for 1-year return calculation
-                hist = peer_ticker.history(period="1y")
-                
-                # Calculate 1-year return if we have sufficient history
-                if len(hist) > 200:  # ~trading days in a year
-                    start_price = hist['Close'].iloc[0]
-                    end_price = hist['Close'].iloc[-1]
-                    one_year_return = round(((end_price / start_price) - 1) * 100, 2)
-                else:
-                    one_year_return = None
-                
-                # Get valuation metrics
-                pe_ratio = peer_info.get('trailingPE', peer_info.get('forwardPE', None))
-                pb_ratio = peer_info.get('priceToBook', None)
-                ps_ratio = peer_info.get('priceToSalesTrailing12Months', None)
-                
-                # Get dividend yield
-                dividend_yield = peer_info.get('dividendYield', 0)
-                if dividend_yield is not None:
-                    dividend_yield = round(dividend_yield * 100, 2)
-                else:
-                    dividend_yield = 0
-                    
-                # Create peer data entry
-                peer_data = {
-                    'symbol': sym,
-                    'name': name,
-                    'market_cap': market_cap_str,
-                    'price': round(price, 2) if price else None,
-                    'one_year_return': one_year_return,
-                    'pe_ratio': round(pe_ratio, 2) if pe_ratio else None,
-                    'dividend_yield': dividend_yield,
-                    
-                    # Additional metrics for detailed comparison
-                    'pb_ratio': round(pb_ratio, 2) if pb_ratio else None,
-                    'ps_ratio': round(ps_ratio, 2) if ps_ratio else None,
-                    'is_selected': sym == symbol  # Pre-select the main symbol
-                }
-                
-                peers_data.append(peer_data)
-                
-            except Exception as e:
-                print(f"Error getting data for peer {sym}: {e}")
-                # Skip this peer if there's an error
-                continue
-        
-        # Get industry and sector for context
-        return {
-            'symbol': symbol,
-            'industry': industry,
-            'sector': sector,
-            'peers': peers_data
-        }
-        
-    except Exception as e:
-        print(f"Error getting peer data for {symbol}: {e}")
-        # Return empty data structure
-        return {
-            'symbol': symbol,
-            'industry': 'N/A',
-            'sector': 'N/A', 
-            'peers': []
-        }
-
 def get_risk_data(symbol):
     """Get risk assessment data for a symbol using yfinance"""
     try:
@@ -3381,6 +1729,461 @@ def get_risk_data(symbol):
                     'stock_values': [50, 50, 50, 50, 50],
                     'industry_values': [50, 50, 50, 50, 50]
                 }
+            }
+        }
+
+# --- End Calculation Functions ---
+
+# --- Technical Indicator Calculation Functions ---
+
+def calculate_rsi(data, window=14):
+    """Calculate Relative Strength Index (RSI)"""
+    delta = data.diff()
+    gain = delta.mask(delta < 0, 0)
+    loss = -delta.mask(delta > 0, 0)
+    
+    # Use .ewm for smoother RSI commonly used in platforms
+    avg_gain = gain.ewm(com=window-1, min_periods=window).mean()
+    avg_loss = loss.ewm(com=window-1, min_periods=window).mean()
+    
+    rs = avg_gain / avg_loss
+    # Handle cases where loss is zero (e.g., all gains)
+    rsi = np.where(avg_loss == 0, 100, 100 - (100 / (1 + rs)))
+    
+    return pd.Series(rsi, index=data.index)
+
+def calculate_macd(data, fast=12, slow=26, signal=9):
+    """Calculate Moving Average Convergence Divergence (MACD)"""
+    ema_fast = data.ewm(span=fast, adjust=False).mean()
+    ema_slow = data.ewm(span=slow, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    histogram = macd_line - signal_line
+    return macd_line, signal_line, histogram
+
+def calculate_bollinger(data, window=20, num_std=2):
+    """Calculate Bollinger Bands"""
+    sma = data.rolling(window=window).mean()
+    std = data.rolling(window=window).std()
+    upper_band = sma + (std * num_std)
+    lower_band = sma - (std * num_std)
+    return upper_band, sma, lower_band # Return middle band (sma) too
+
+def calculate_stochastic(data_df, k_window=14, d_window=3):
+    """Calculate Stochastic Oscillator (%K and %D)"""
+    low_min = data_df['Low'].rolling(window=k_window).min()
+    high_max = data_df['High'].rolling(window=k_window).max()
+    # %K = (Current Close - Lowest Low)/(Highest High - Lowest Low) * 100
+    k_denominator = (high_max - low_min)
+    # Replace 0 denominator with NaN to avoid division by zero, then fill resulting NaN with 50 (neutral)
+    k = 100 * ((data_df['Close'] - low_min) / k_denominator.replace(0, np.nan)).fillna(0.5)
+    # %D = 3-day SMA of %K
+    d = k.rolling(window=d_window).mean()
+    return k, d
+
+def calculate_atr(data_df, window=14):
+    """Calculate Average True Range (ATR)"""
+    high_low = data_df['High'] - data_df['Low']
+    high_close = (data_df['High'] - data_df['Close'].shift()).abs()
+    low_close = (data_df['Low'] - data_df['Close'].shift()).abs()
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    # Use Exponential Moving Average for ATR as is common
+    atr = tr.ewm(span=window, adjust=False).mean()
+    return atr
+
+def calculate_obv(data_df):
+    """Calculate On-Balance Volume (OBV)"""
+    obv = (np.sign(data_df['Close'].diff()) * data_df['Volume']).fillna(0).cumsum()
+    return obv
+
+def calculate_adx(data_df, window=14):
+    """Calculate Average Directional Index (ADX)"""
+    df = data_df.copy()
+    
+    # Calculate True Range
+    high_low = df['High'] - df['Low']
+    high_close = (df['High'] - df['Close'].shift()).abs()
+    low_close = (df['Low'] - df['Close'].shift()).abs()
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    
+    # Calculate +DM and -DM
+    plus_dm = df['High'].diff()
+    minus_dm = df['Low'].shift().diff(-1)
+    plus_dm = plus_dm.where((plus_dm > 0) & (plus_dm > minus_dm), 0)
+    minus_dm = minus_dm.where((minus_dm > 0) & (minus_dm > plus_dm), 0)
+    
+    # Calculate smoothed values using EWM
+    smoothed_tr = tr.ewm(span=window, adjust=False).mean()
+    smoothed_plus_dm = plus_dm.ewm(span=window, adjust=False).mean()
+    smoothed_minus_dm = minus_dm.ewm(span=window, adjust=False).mean()
+    
+    # Calculate +DI and -DI
+    plus_di = 100 * (smoothed_plus_dm / smoothed_tr)
+    minus_di = 100 * (smoothed_minus_dm / smoothed_tr)
+    
+    # Calculate DX
+    dx_nom = (plus_di - minus_di).abs()
+    dx_denom = (plus_di + minus_di)
+    dx = 100 * (dx_nom / dx_denom)
+    
+    # Calculate ADX
+    adx = dx.ewm(span=window, adjust=False).mean()
+    
+    return adx, plus_di, minus_di
+
+def calculate_cci(data_df, window=20):
+    """Calculate Commodity Channel Index (CCI)"""
+    # Create typical price
+    tp = (data_df['High'] + data_df['Low'] + data_df['Close']) / 3
+    
+    # Calculate SMA of typical price
+    sma_tp = tp.rolling(window=window).mean()
+    
+    # Calculate Mean Deviation
+    md = tp.rolling(window=window).apply(lambda x: np.abs(x - x.mean()).mean())
+    
+    # Calculate CCI
+    cci = (tp - sma_tp) / (0.015 * md)
+    
+    return cci
+
+# --- End Technical Indicator Calculation Functions ---
+
+def get_technical_indicators(symbol, period="1y"):
+    """Get technical indicators for a given stock symbol."""
+    try:
+        # Get historical data
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period=period)
+        
+        if hist.empty:
+            raise ValueError(f"No data found for {symbol}")
+        
+        # Calculate various technical indicators
+        # RSI (14-day)
+        hist['RSI'] = calculate_rsi(hist['Close'])
+        
+        # MACD
+        macd_line, signal_line, histogram = calculate_macd(hist['Close'])
+        hist['MACD'] = macd_line
+        hist['MACD_Signal'] = signal_line
+        hist['MACD_Hist'] = histogram
+        
+        # Simple Moving Averages
+        hist['SMA_20'] = hist['Close'].rolling(window=20).mean()
+        hist['SMA_50'] = hist['Close'].rolling(window=50).mean()
+        hist['SMA_200'] = hist['Close'].rolling(window=200).mean()
+        
+        # Bollinger Bands (20-day, 2 standard deviations)
+        upper_band, middle_band, lower_band = calculate_bollinger(hist['Close'])
+        hist['BB_Upper'] = upper_band
+        hist['BB_Middle'] = middle_band
+        hist['BB_Lower'] = lower_band
+        
+        # Average True Range (14-day)
+        hist['ATR'] = calculate_atr(hist)
+        
+        # Stochastic Oscillator (14-day)
+        k, d = calculate_stochastic(hist)
+        hist['Stoch_K'] = k
+        hist['Stoch_D'] = d
+        
+        # On-Balance Volume
+        hist['OBV'] = calculate_obv(hist)
+        
+        # ADX (14-day)
+        adx, plus_di, minus_di = calculate_adx(hist)
+        hist['ADX'] = adx
+        hist['Plus_DI'] = plus_di
+        hist['Minus_DI'] = minus_di
+        
+        # CCI (20-day)
+        hist['CCI'] = calculate_cci(hist)
+        
+        # Determine signals
+        signals = {}
+        latest_close = hist['Close'].iloc[-1]
+        
+        # RSI Signal
+        latest_rsi = hist['RSI'].iloc[-1]
+        if latest_rsi < 30:
+            signals['RSI'] = {'signal': 'Oversold (Buy)', 'value': f"{latest_rsi:.2f}"}
+        elif latest_rsi > 70:
+            signals['RSI'] = {'signal': 'Overbought (Sell)', 'value': f"{latest_rsi:.2f}"}
+        else:
+            signals['RSI'] = {'signal': 'Neutral', 'value': f"{latest_rsi:.2f}"}
+        
+        # MACD Signal
+        latest_macd = hist['MACD'].iloc[-1]
+        latest_signal = hist['MACD_Signal'].iloc[-1]
+        
+        if latest_macd > latest_signal:
+            signals['MACD'] = {'signal': 'Bullish', 'value': f"{latest_macd:.2f}"}
+        else:
+            signals['MACD'] = {'signal': 'Bearish', 'value': f"{latest_macd:.2f}"}
+        
+        # Moving Average Signal
+        sma_20 = hist['SMA_20'].iloc[-1]
+        sma_50 = hist['SMA_50'].iloc[-1]
+        sma_200 = hist['SMA_200'].iloc[-1]
+        
+        ma_signals = []
+        ma_values = []
+        
+        if latest_close > sma_20:
+            ma_signals.append("Price > SMA(20)")
+            ma_values.append(f"SMA(20): {sma_20:.2f}")
+        else:
+            ma_signals.append("Price < SMA(20)")
+            ma_values.append(f"SMA(20): {sma_20:.2f}")
+            
+        if latest_close > sma_50:
+            ma_signals.append("Price > SMA(50)")
+            ma_values.append(f"SMA(50): {sma_50:.2f}")
+        else:
+            ma_signals.append("Price < SMA(50)")
+            ma_values.append(f"SMA(50): {sma_50:.2f}")
+            
+        if latest_close > sma_200:
+            ma_signals.append("Price > SMA(200)")
+            ma_values.append(f"SMA(200): {sma_200:.2f}")
+        else:
+            ma_signals.append("Price < SMA(200)")
+            ma_values.append(f"SMA(200): {sma_200:.2f}")
+        
+        if sma_20 > sma_50 and sma_50 > sma_200:
+            ma_trend = "Strong Uptrend"
+        elif sma_20 < sma_50 and sma_50 < sma_200:
+            ma_trend = "Strong Downtrend"
+        elif sma_20 > sma_50:
+            ma_trend = "Short-term Uptrend"
+        else:
+            ma_trend = "Short-term Downtrend"
+            
+        signals['MA'] = {'signal': ma_trend, 'value': ", ".join(ma_values)}
+        
+        # Bollinger Bands Signal
+        latest_upper = hist['BB_Upper'].iloc[-1]
+        latest_lower = hist['BB_Lower'].iloc[-1]
+        
+        if latest_close > latest_upper:
+            signals['BB'] = {'signal': 'Above Upper Band (Sell)', 'value': f"Upper: {latest_upper:.2f}"}
+        elif latest_close < latest_lower:
+            signals['BB'] = {'signal': 'Below Lower Band (Buy)', 'value': f"Lower: {latest_lower:.2f}"}
+        else:
+            signals['BB'] = {'signal': 'Within Bands', 'value': f"Upper: {latest_upper:.2f}, Lower: {latest_lower:.2f}"}
+        
+        # ATR doesn't give direct signals but indicates volatility
+        latest_atr = hist['ATR'].iloc[-1]
+        atr_percent = (latest_atr / latest_close) * 100
+        
+        if atr_percent > 3:
+            signals['ATR'] = {'signal': 'High Volatility', 'value': f"{latest_atr:.2f} ({atr_percent:.2f}%)"}
+        elif atr_percent < 1:
+            signals['ATR'] = {'signal': 'Low Volatility', 'value': f"{latest_atr:.2f} ({atr_percent:.2f}%)"}
+        else:
+            signals['ATR'] = {'signal': 'Moderate Volatility', 'value': f"{latest_atr:.2f} ({atr_percent:.2f}%)"}
+        
+        # Stochastic Signal
+        latest_k = hist['Stoch_K'].iloc[-1]
+        latest_d = hist['Stoch_D'].iloc[-1]
+        
+        if latest_k < 20 and latest_d < 20:
+            signals['Stochastic'] = {'signal': 'Oversold (Buy)', 'value': f"K: {latest_k:.2f}, D: {latest_d:.2f}"}
+        elif latest_k > 80 and latest_d > 80:
+            signals['Stochastic'] = {'signal': 'Overbought (Sell)', 'value': f"K: {latest_k:.2f}, D: {latest_d:.2f}"}
+        elif latest_k > latest_d:
+            signals['Stochastic'] = {'signal': 'Bullish Crossover', 'value': f"K: {latest_k:.2f}, D: {latest_d:.2f}"}
+        elif latest_k < latest_d:
+            signals['Stochastic'] = {'signal': 'Bearish Crossover', 'value': f"K: {latest_k:.2f}, D: {latest_d:.2f}"}
+        else:
+            signals['Stochastic'] = {'signal': 'Neutral', 'value': f"K: {latest_k:.2f}, D: {latest_d:.2f}"}
+        
+        # OBV Signal (look at trend over last 20 days)
+        obv_trend = np.polyfit(range(20), hist['OBV'].iloc[-20:].values, 1)[0]
+        if obv_trend > 0:
+            signals['OBV'] = {'signal': 'Rising (Bullish)', 'value': f"{hist['OBV'].iloc[-1]:.0f}"}
+        else:
+            signals['OBV'] = {'signal': 'Falling (Bearish)', 'value': f"{hist['OBV'].iloc[-1]:.0f}"}
+        
+        # ADX Signal
+        latest_adx = hist['ADX'].iloc[-1]
+        latest_plus_di = hist['Plus_DI'].iloc[-1]
+        latest_minus_di = hist['Minus_DI'].iloc[-1]
+        
+        # Print debug info
+        print(f"[DEBUG] ADX value type: {type(latest_adx)}, value: {latest_adx}")
+        print(f"[DEBUG] +DI value type: {type(latest_plus_di)}, value: {latest_plus_di}")
+        print(f"[DEBUG] -DI value type: {type(latest_minus_di)}, value: {latest_minus_di}")
+        
+        # Ensure values are numeric
+        try:
+            latest_adx_val = float(latest_adx)
+            latest_plus_di_val = float(latest_plus_di)
+            latest_minus_di_val = float(latest_minus_di)
+            
+            if latest_adx_val > 25:
+                if latest_plus_di_val > latest_minus_di_val:
+                    signals['ADX'] = {'signal': 'Strong Uptrend', 'value': f"ADX: {latest_adx_val:.2f}, +DI: {latest_plus_di_val:.2f}, -DI: {latest_minus_di_val:.2f}"}
+                else:
+                    signals['ADX'] = {'signal': 'Strong Downtrend', 'value': f"ADX: {latest_adx_val:.2f}, +DI: {latest_plus_di_val:.2f}, -DI: {latest_minus_di_val:.2f}"}
+            else:
+                signals['ADX'] = {'signal': 'No Trend', 'value': f"ADX: {latest_adx_val:.2f}, +DI: {latest_plus_di_val:.2f}, -DI: {latest_minus_di_val:.2f}"}
+        except (ValueError, TypeError) as e:
+            print(f"[ERROR] Error formatting ADX values: {e}")
+            signals['ADX'] = {'signal': 'No Data', 'value': 'N/A'}
+        
+        # CCI Signal
+        latest_cci = hist['CCI'].iloc[-1]
+        print(f"[DEBUG] CCI value type: {type(latest_cci)}, value: {latest_cci}")
+        
+        # Ensure CCI value is numeric
+        try:
+            latest_cci_val = float(latest_cci)
+            
+            if latest_cci_val > 100:
+                signals['CCI'] = {'signal': 'Overbought (Sell)', 'value': f"{latest_cci_val:.2f}"}
+            elif latest_cci_val < -100:
+                signals['CCI'] = {'signal': 'Oversold (Buy)', 'value': f"{latest_cci_val:.2f}"}
+            else:
+                signals['CCI'] = {'signal': 'Neutral', 'value': f"{latest_cci_val:.2f}"}
+        except (ValueError, TypeError) as e:
+            print(f"[ERROR] Error formatting CCI value: {e}")
+            signals['CCI'] = {'signal': 'No Data', 'value': 'N/A'}
+        
+        # Determine overall recommendation
+        bullish_signals = 0
+        bearish_signals = 0
+        
+        # RSI
+        if 'Oversold' in signals['RSI']['signal']:
+            bullish_signals += 1
+        elif 'Overbought' in signals['RSI']['signal']:
+            bearish_signals += 1
+        
+        # MACD
+        if 'Bullish' in signals['MACD']['signal']:
+            bullish_signals += 1
+        else:
+            bearish_signals += 1
+        
+        # MA
+        if 'Uptrend' in signals['MA']['signal']:
+            bullish_signals += 1
+        else:
+            bearish_signals += 1
+        
+        # BB
+        if 'Buy' in signals['BB']['signal']:
+            bullish_signals += 1
+        elif 'Sell' in signals['BB']['signal']:
+            bearish_signals += 1
+        
+        # Stochastic
+        if 'Buy' in signals['Stochastic']['signal'] or 'Bullish' in signals['Stochastic']['signal']:
+            bullish_signals += 1
+        elif 'Sell' in signals['Stochastic']['signal'] or 'Bearish' in signals['Stochastic']['signal']:
+            bearish_signals += 1
+        
+        # OBV
+        if 'Bullish' in signals['OBV']['signal']:
+            bullish_signals += 1
+        else:
+            bearish_signals += 1
+            
+        # ADX
+        if 'Uptrend' in signals['ADX']['signal']:
+            bullish_signals += 1
+        elif 'Downtrend' in signals['ADX']['signal']:
+            bearish_signals += 1
+            
+        # CCI
+        if 'Buy' in signals['CCI']['signal']:
+            bullish_signals += 1
+        elif 'Sell' in signals['CCI']['signal']:
+            bearish_signals += 1
+        
+        # Determine recommendation
+        total_signals = 8  # Total number of indicators considered for recommendations
+        
+        if bullish_signals > bearish_signals:
+            score = bullish_signals / total_signals * 100
+            if score >= 75:
+                recommendation = {'label': 'Strong Buy', 'score': score}
+            else:
+                recommendation = {'label': 'Buy', 'score': score}
+        elif bearish_signals > bullish_signals:
+            score = bearish_signals / total_signals * 100
+            if score >= 75:
+                recommendation = {'label': 'Strong Sell', 'score': score}
+            else:
+                recommendation = {'label': 'Sell', 'score': score}
+        else:
+            recommendation = {'label': 'Neutral', 'score': 50}
+        
+        # Format chart data for the last 180 days
+        chart_data = {
+            'dates': hist.index[-180:].strftime('%Y-%m-%d').tolist(),
+            'close': nan_to_null(hist['Close'][-180:].tolist()),
+            'volume': nan_to_null(hist['Volume'][-180:].tolist()),
+            'rsi': nan_to_null(hist['RSI'][-180:].tolist()),
+            'macd_line': nan_to_null(hist['MACD'][-180:].tolist()),
+            'macd_signal': nan_to_null(hist['MACD_Signal'][-180:].tolist()),
+            'macd_hist': nan_to_null(hist['MACD_Hist'][-180:].tolist()),
+            'sma20': nan_to_null(hist['SMA_20'][-180:].tolist()),
+            'sma50': nan_to_null(hist['SMA_50'][-180:].tolist()),
+            'sma200': nan_to_null(hist['SMA_200'][-180:].tolist()),
+            'bb_upper': nan_to_null(hist['BB_Upper'][-180:].tolist()),
+            'bb_middle': nan_to_null(hist['BB_Middle'][-180:].tolist()),
+            'bb_lower': nan_to_null(hist['BB_Lower'][-180:].tolist()),
+            'stoch_k': nan_to_null(hist['Stoch_K'][-180:].tolist()),
+            'stoch_d': nan_to_null(hist['Stoch_D'][-180:].tolist()),
+            'atr': nan_to_null(hist['ATR'][-180:].tolist()),
+            'obv': nan_to_null(hist['OBV'][-180:].tolist()),
+            'adx': {
+                'adx': nan_to_null(hist['ADX'][-180:].tolist()),
+                'plus_di': nan_to_null(hist['Plus_DI'][-180:].tolist()),
+                'minus_di': nan_to_null(hist['Minus_DI'][-180:].tolist())
+            },
+            'cci': nan_to_null(hist['CCI'][-180:].tolist())
+        }
+        
+        return {
+            'recommendation': recommendation,
+            'score': recommendation['score'],
+            'signals': signals,
+            'chart_data': chart_data
+        }
+    
+    except Exception as e:
+        print(f"Error calculating technical indicators: {e}")
+        return {
+            'recommendation': {'label': 'Data Error', 'score': 0},
+            'score': 0,
+            'signals': {
+                'RSI': {'signal': 'No Data', 'value': 'N/A'},
+                'MACD': {'signal': 'No Data', 'value': 'N/A'},
+                'MA': {'signal': 'No Data', 'value': 'N/A'},
+                'BB': {'signal': 'No Data', 'value': 'N/A'},
+                'ATR': {'signal': 'No Data', 'value': 'N/A'},
+                'Stochastic': {'signal': 'No Data', 'value': 'N/A'},
+                'OBV': {'signal': 'No Data', 'value': 'N/A'},
+                'ADX': {'signal': 'No Data', 'value': 'N/A'},
+                'CCI': {'signal': 'No Data', 'value': 'N/A'}
+            },
+            'chart_data': {
+                'dates': [],
+                'close': [],
+                'volume': [],
+                'rsi': [],
+                'macd_line': [], 'macd_signal': [], 'macd_hist': [],
+                'sma20': [], 'sma50': [], 'sma200': [],
+                'bb_upper': [], 'bb_middle': [], 'bb_lower': [],
+                'stoch_k': [], 'stoch_d': [],
+                'atr': [],
+                'obv': [],
+                'adx': {'adx': [], 'plus_di': [], 'minus_di': []},
+                'cci': []
             }
         }
 
