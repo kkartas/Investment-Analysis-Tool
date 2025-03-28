@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active">News Sentiment</li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">{{ ticker_data.company_name }} ({{ ticker_data.symbol }})</h2>
+        <p class="text-muted">News Sentiment Analysis</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Sentiment Overview Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Sentiment Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center mb-4">
+                    <div class="col-md-6 text-center">
+                        <div class="sentiment-gauge mb-3">
+                            <div class="gauge-value" style="transform: rotate({{ sentiment_data.overall_sentiment * 1.8 }}deg)"></div>
+                            <div class="gauge-center">
+                                <div class="gauge-score">{{ sentiment_data.overall_sentiment|int }}%</div>
+                                <div class="gauge-label text-muted small">Bullish</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <h6 class="mb-2">Sentiment Score</h6>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar {{ 'bg-success' if sentiment_data.overall_sentiment > 60 else 'bg-warning' if sentiment_data.overall_sentiment > 40 else 'bg-danger' }}" role="progressbar" style="width: {{ sentiment_data.overall_sentiment }}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <small class="text-danger">Bearish</small>
+                                <small class="text-success">Bullish</small>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span>Positive News</span>
+                                <span class="fw-bold">{{ sentiment_data.positive_count }}</span>
+                            </div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ sentiment_data.positive_pct }}%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span>Negative News</span>
+                                <span class="fw-bold">{{ sentiment_data.negative_count }}</span>
+                            </div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: {{ sentiment_data.negative_pct }}%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span>Neutral News</span>
+                                <span class="fw-bold">{{ sentiment_data.neutral_count }}</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-secondary" role="progressbar" style="width: {{ sentiment_data.neutral_pct }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sentiment-summary">
+                    <h6>Summary</h6>
+                    <p>{{ sentiment_data.summary }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sentiment Trend Card -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Sentiment Trend</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 250px;">
+                    <canvas id="sentimentTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- News Items -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent News</h5>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-filter="all">All</button>
+                    <button type="button" class="btn btn-sm btn-outline-success" data-filter="positive">Positive</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-filter="neutral">Neutral</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-filter="negative">Negative</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for article in sentiment_data.articles %}
+                    <div class="col-md-6 mb-4 news-item" data-sentiment="{{ article.sentiment }}">
+                        <div class="card h-100 news-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge {{ 'bg-success' if article.sentiment == 'positive' else 'bg-danger' if article.sentiment == 'negative' else 'bg-secondary' }}">
+                                        {{ article.sentiment_score }}
+                                    </span>
+                                    <small class="text-muted">{{ article.date }}</small>
+                                </div>
+                                <h6 class="card-title mb-2">{{ article.title }}</h6>
+                                <p class="card-text text-muted small">{{ article.summary }}</p>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <small class="text-muted">{{ article.source }}</small>
+                                    <a href="{{ article.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Read More</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sentiment trend chart
+        const ctxTrend = document.getElementById('sentimentTrendChart').getContext('2d');
+        const trendData = JSON.parse({{ trend_data_json|safe }}); // Parse the JSON string
+
+        new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: trendData.dates, // Use parsed data
+                datasets: [{
+                    label: 'Sentiment Score',
+                    data: trendData.scores, // Use parsed data
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointBackgroundColor: function(context) {
+                        const value = context.dataset.data[context.dataIndex];
+                        if (value > 60) return '#198754';
+                        if (value > 40) return '#ffc107';
+                        return '#dc3545';
+                    }
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                if (value === 100) return 'Bullish';
+                                if (value === 50) return 'Neutral';
+                                if (value === 0) return 'Bearish';
+                                return '';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const score = context.parsed.y;
+                                let sentiment = 'Neutral';
+                                if (score > 60) sentiment = 'Bullish';
+                                if (score < 40) sentiment = 'Bearish';
+                                return `Sentiment: ${sentiment} (${score}%)`;
+                            }
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            bullishLine: {
+                                type: 'line',
+                                yMin: 60,
+                                yMax: 60,
+                                borderColor: 'rgba(25, 135, 84, 0.5)',
+                                borderWidth: 1,
+                                borderDash: [5, 5]
+                            },
+                            bearishLine: {
+                                type: 'line',
+                                yMin: 40,
+                                yMax: 40,
+                                borderColor: 'rgba(220, 53, 69, 0.5)',
+                                borderWidth: 1,
+                                borderDash: [5, 5]
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // News filtering
+        const filterButtons = document.querySelectorAll('[data-filter]');
+        const newsItems = document.querySelectorAll('.news-item');
+
+        filterButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const filter = this.dataset.filter;
+                
+                // Set active state on buttons
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Filter news items
+                newsItems.forEach(item => {
+                    if (filter === 'all' || item.dataset.sentiment === filter) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        });
+    });
+</script>
+
+<style>
+    /* Sentiment gauge styling */
+    .sentiment-gauge {
+        position: relative;
+        width: 180px;
+        height: 90px;
+        margin: 0 auto;
+        overflow: hidden;
+        background-color: #f5f5f5;
+        border-top-left-radius: 180px;
+        border-top-right-radius: 180px;
+    }
+
+    .gauge-value {
+        position: absolute;
+        bottom: 0;
+        left: 90px;
+        width: 4px;
+        height: 90px;
+        background-color: #000;
+        transform-origin: bottom center;
+        transition: transform 0.5s ease-out;
+    }
+
+    .gauge-center {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        text-align: center;
+        padding-bottom: 15px;
+    }
+
+    .gauge-score {
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .gauge-label {
+        font-size: 12px;
+    }
+
+    /* News card styling */
+    .news-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid;
+    }
+
+    .news-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    [data-sentiment="positive"] .news-card {
+        border-left-color: #198754;
+    }
+
+    [data-sentiment="negative"] .news-card {
+        border-left-color: #dc3545;
+    }
+
+    [data-sentiment="neutral"] .news-card {
+        border-left-color: #6c757d;
+    }
+</style>
+{% endblock %} 

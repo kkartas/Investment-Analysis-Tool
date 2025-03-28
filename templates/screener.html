@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-filter text-primary me-2"></i>Stock Screener</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">Find stocks that match your investment criteria by applying various filters.</p>
+                
+                <form method="POST" action="/screener" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Market Cap (B$)</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="number" step="0.1" min="0" name="market_cap_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.get('market_cap_min', '') }}">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" step="0.1" min="0" name="market_cap_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.get('market_cap_max', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">P/E Ratio</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="number" step="0.1" min="0" name="pe_ratio_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.get('pe_ratio_min', '') }}">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" step="0.1" min="0" name="pe_ratio_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.get('pe_ratio_max', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Dividend Yield (%)</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="number" step="0.1" min="0" name="dividend_yield_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.get('dividend_yield_min', '') }}">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" step="0.1" min="0" name="dividend_yield_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.get('dividend_yield_max', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Beta</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="number" step="0.1" name="beta_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.get('beta_min', '') }}">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" step="0.1" name="beta_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.get('beta_max', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Sector</label>
+                        <select name="sector" class="form-select form-select-sm">
+                            <option value="All">All Sectors</option>
+                            {% for sector in sectors %}
+                            <option value="{{ sector }}" {% if filters.get('sector') == sector %}selected{% endif %}>{{ sector }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Industry</label>
+                        <input type="text" name="industry" class="form-control form-control-sm" placeholder="e.g. Software" value="{{ filters.get('industry', '') }}">
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Price ($)</label>
+                        <div class="row">
+                            <div class="col-6">
+                                <input type="number" step="0.01" min="0" name="price_min" class="form-control form-control-sm" placeholder="Min" value="{{ filters.get('price_min', '') }}">
+                            </div>
+                            <div class="col-6">
+                                <input type="number" step="0.01" min="0" name="price_max" class="form-control form-control-sm" placeholder="Max" value="{{ filters.get('price_max', '') }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>Find Stocks
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if results %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Screening Results ({{ results|length }} stocks)</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Name</th>
+                                <th>Sector</th>
+                                <th>Price ($)</th>
+                                <th>Market Cap (B$)</th>
+                                <th>P/E</th>
+                                <th>Div Yield (%)</th>
+                                <th>Beta</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in results %}
+                            <tr>
+                                <td class="fw-bold">{{ stock.symbol }}</td>
+                                <td>{{ stock.name }}</td>
+                                <td>{{ stock.sector }}</td>
+                                <td>{{ "%.2f"|format(stock.price) }}</td>
+                                <td>{{ "%.2f"|format(stock.market_cap) }}</td>
+                                <td>{{ "%.2f"|format(stock.pe_ratio) if stock.pe_ratio > 0 else 'N/A' }}</td>
+                                <td>{{ "%.2f"|format(stock.dividend_yield) }}</td>
+                                <td>{{ "%.2f"|format(stock.beta) }}</td>
+                                <td>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="action{{ loop.index }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Analyze
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="action{{ loop.index }}">
+                                            <li><a class="dropdown-item" href="/?symbol={{ stock.symbol }}&action=load_stock"><i class="fas fa-chart-line me-2"></i>Price Charts</a></li>
+                                            <li><a class="dropdown-item" href="/technical_indicators?symbol={{ stock.symbol }}"><i class="fas fa-chart-bar me-2"></i>Technical Analysis</a></li>
+                                            <li><a class="dropdown-item" href="/dividends?symbol={{ stock.symbol }}"><i class="fas fa-money-bill-wave me-2"></i>Dividend Analysis</a></li>
+                                            <li><a class="dropdown-item" href="/risk_assessment?symbol={{ stock.symbol }}"><i class="fas fa-shield-alt me-2"></i>Risk Profile</a></li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile View for Results (visible only on small screens) -->
+<div class="d-md-none mt-4">
+    <h5 class="mb-3">Results ({{ results|length }} stocks)</h5>
+    <div class="row g-3">
+        {% for stock in results %}
+        <div class="col-12">
+            <div class="card feature-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">{{ stock.symbol }}</h5>
+                        <span class="badge bg-light text-dark">${{ "%.2f"|format(stock.price) }}</span>
+                    </div>
+                    <p class="text-muted mb-3">{{ stock.name }}</p>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="small text-muted">Market Cap</div>
+                            <div>${{ "%.2f"|format(stock.market_cap) }}B</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">P/E Ratio</div>
+                            <div>{{ "%.2f"|format(stock.pe_ratio) if stock.pe_ratio > 0 else 'N/A' }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">Dividend Yield</div>
+                            <div>{{ "%.2f"|format(stock.dividend_yield) }}%</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">Beta</div>
+                            <div>{{ "%.2f"|format(stock.beta) }}</div>
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <a href="/?symbol={{ stock.symbol }}&action=load_stock" class="btn btn-sm btn-primary">
+                            <i class="fas fa-chart-line me-2"></i>Analyze
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% elif request.method == 'POST' %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>No stocks match your criteria. Try adjusting your filters.
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Enable tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltips.map(function (tooltip) {
+            return new bootstrap.Tooltip(tooltip);
+        });
+    });
+</script>
+{% endblock %} 

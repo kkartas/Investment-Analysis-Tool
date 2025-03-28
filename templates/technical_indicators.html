@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active">Technical Indicators</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="mb-0">{{ company_name }} ({{ symbol }})</h2>
+            <div class="d-flex">
+                <div class="btn-group" role="group">
+                    <a href="/technical_indicators?symbol={{ symbol }}&period=1m" class="btn btn-sm btn-outline-primary {% if selected_period == '1m' %}active{% endif %}">1M</a>
+                    <a href="/technical_indicators?symbol={{ symbol }}&period=3m" class="btn btn-sm btn-outline-primary {% if selected_period == '3m' %}active{% endif %}">3M</a>
+                    <a href="/technical_indicators?symbol={{ symbol }}&period=6m" class="btn btn-sm btn-outline-primary {% if selected_period == '6m' %}active{% endif %}">6M</a>
+                    <a href="/technical_indicators?symbol={{ symbol }}&period=1y" class="btn btn-sm btn-outline-primary {% if selected_period == '1y' or not selected_period %}active{% endif %}">1Y</a>
+                    <a href="/technical_indicators?symbol={{ symbol }}&period=2y" class="btn btn-sm btn-outline-primary {% if selected_period == '2y' %}active{% endif %}">2Y</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technical Analysis Recommendation Card -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Technical Analysis Summary</h5>
+                <span class="badge {% if recommendation.summary == 'Strong Buy' or recommendation.summary == 'Buy' %}bg-success{% elif recommendation.summary == 'Strong Sell' or recommendation.summary == 'Sell' %}bg-danger{% else %}bg-warning{% endif %} fs-6">{{ recommendation.summary }}</span>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="me-3">
+                                <div class="progress-ring" data-value="{{ recommendation.confidence }}">
+                                    <svg width="80" height="80">
+                                        <circle class="progress-ring-circle-bg" stroke-width="8" fill="transparent" r="34" cx="40" cy="40"/>
+                                        <circle class="progress-ring-circle" stroke-width="8" fill="transparent" r="34" cx="40" cy="40"/>
+                                        <text x="40" y="45" text-anchor="middle" class="progress-text">{{ recommendation.confidence }}%</text>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">Confidence Score</h6>
+                                <p class="mb-0 text-muted small">Based on multiple indicators</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="mb-2">Technical Score</h6>
+                        <div class="progress mb-1" style="height: 10px;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (recommendation.score + 10) / 20 * 100 }}%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-danger">Bearish</small>
+                            <small class="text-success">Bullish</small>
+                        </div>
+                        <p class="mt-2">Score: {{ recommendation.score }}</p>
+                    </div>
+                </div>
+
+                <h6>Signal Summary</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Indicator</th>
+                                <th>Signal</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for signal in recommendation.signals %}
+                            <tr>
+                                <td>{{ signal.indicator }}</td>
+                                <td>
+                                    <span class="badge {% if signal.signal == 'Bullish' %}bg-success{% elif signal.signal == 'Bearish' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ signal.signal }}
+                                    </span>
+                                </td>
+                                <td class="small">{{ signal.details }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Price Chart</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technical Indicators Charts -->
+<div class="row">
+    <div class="col-12">
+        <ul class="nav nav-tabs" id="indicatorTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="momentum-tab" data-bs-toggle="tab" data-bs-target="#momentum" type="button" role="tab">Momentum</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="trend-tab" data-bs-toggle="tab" data-bs-target="#trend" type="button" role="tab">Trend</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="volatility-tab" data-bs-toggle="tab" data-bs-target="#volatility" type="button" role="tab">Volatility</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="oscillators-tab" data-bs-toggle="tab" data-bs-target="#oscillators" type="button" role="tab">Oscillators</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="volume-tab" data-bs-toggle="tab" data-bs-target="#volume" type="button" role="tab">Volume</button>
+            </li>
+        </ul>
+        
+        <div class="tab-content mt-3" id="indicatorTabsContent">
+            <!-- Momentum Indicators -->
+            <div class="tab-pane fade show active" id="momentum" role="tabpanel">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">RSI (Relative Strength Index)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="rsiChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">MACD (Moving Average Convergence Divergence)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="macdChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Trend Indicators -->
+            <div class="tab-pane fade" id="trend" role="tabpanel">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Moving Averages</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="maChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">ADX (Average Directional Index)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="adxChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Volatility Indicators -->
+            <div class="tab-pane fade" id="volatility" role="tabpanel">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Bollinger Bands</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="bollingerChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">ATR (Average True Range)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="atrChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Oscillators -->
+            <div class="tab-pane fade" id="oscillators" role="tabpanel">
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Stochastic Oscillator</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="stochChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">CCI (Commodity Channel Index)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 250px;">
+                                    <canvas id="cciChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Volume -->
+            <div class="tab-pane fade" id="volume" role="tabpanel">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Volume and Price</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="position: relative; height: 300px;">
+                                    <canvas id="volumeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Parse the chart data from JSON
+        const chartData = JSON.parse({{ chart_data_json|safe }});
+        const labels = chartData.dates || []; // Use dates as labels
+
+        // --- Chart Configurations --- 
+
+        // 1. Price Chart (Candlestick or Line)
+        const priceCtx = document.getElementById('priceChart').getContext('2d');
+        new Chart(priceCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '{{ symbol }} Close Price',
+                        data: chartData.close,
+                        borderColor: '#0d6efd',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day' 
+                        },
+                        ticks: {
+                            source: 'auto',
+                            maxRotation: 0,
+                            autoSkip: true,
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Price'
+                        }
+                    }
+                },
+                 plugins: { legend: { display: false } }
+            }
+        });
+
+        // 2. RSI Chart
+        const rsiCtx = document.getElementById('rsiChart').getContext('2d');
+        new Chart(rsiCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'RSI',
+                        data: chartData.rsi,
+                        borderColor: '#6f42c1', // Purple
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    x: { type: 'time', time: { unit: 'day' }, display: false }, // Hide x-axis labels 
+                    y: { min: 0, max: 100, title: { display: true, text: 'RSI'} }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    annotation: { // Add overbought/oversold lines
+                        annotations: {
+                            line1: { type: 'line', yMin: 70, yMax: 70, borderColor: 'rgb(255, 99, 132, 0.5)', borderWidth: 1 },
+                            line2: { type: 'line', yMin: 30, yMax: 30, borderColor: 'rgb(75, 192, 192, 0.5)', borderWidth: 1 }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. MACD Chart
+        const macdCtx = document.getElementById('macdChart').getContext('2d');
+        new Chart(macdCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'MACD Line',
+                        data: chartData.macd_line,
+                        borderColor: '#0d6efd', // Blue
+                        backgroundColor: '#0d6efd',
+                        type: 'line',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        order: 1 // Draw line on top
+                    },
+                    {
+                        label: 'Signal Line',
+                        data: chartData.macd_signal,
+                        borderColor: '#fd7e14', // Orange
+                        backgroundColor: '#fd7e14',
+                        type: 'line',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        order: 2 // Draw line on top
+                    },
+                     {
+                        label: 'Histogram',
+                        data: chartData.macd_hist,
+                        backgroundColor: (context) => { // Color histogram bars
+                            const value = context.raw;
+                            return value >= 0 ? 'rgba(25, 135, 84, 0.5)' : 'rgba(220, 53, 69, 0.5)'; // Green/Red
+                        },
+                        borderColor: (context) => {
+                             const value = context.raw;
+                            return value >= 0 ? 'rgba(25, 135, 84, 1)' : 'rgba(220, 53, 69, 1)';
+                        },
+                        borderWidth: 1,
+                        order: 3 // Draw bars behind lines
+                    }
+                ]
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    x: { type: 'time', time: { unit: 'day' }, display: false },
+                    y: { title: { display: true, text: 'MACD'} }
+                },
+                plugins: { legend: { display: true, position: 'top' } }
+            }
+        });
+        
+        // 4. Moving Averages Chart (on Price Chart or separate)
+        // Let's add MAs to the Price chart by modifying its config if needed,
+        // or create a separate MA chart if preferred.
+        // For simplicity, let's add to Price Chart (requires modifying Price Chart config above)
+        // OR Create a separate MA Chart:
+        const maCtx = document.getElementById('maChart').getContext('2d');
+        new Chart(maCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Close', data: chartData.close, borderColor: 'rgba(0,0,0,0.2)', borderWidth: 1, pointRadius: 0, tension: 0.1 },
+                    { label: 'SMA 20', data: chartData.sma20, borderColor: '#ffc107', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                    { label: 'SMA 50', data: chartData.sma50, borderColor: '#fd7e14', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                    { label: 'SMA 200', data: chartData.sma200, borderColor: '#dc3545', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                ]
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    x: { type: 'time', time: { unit: 'day' }, display: false },
+                    y: { title: { display: true, text: 'Moving Averages' } }
+                },
+                plugins: { legend: { display: true, position: 'top' } }
+            }
+        });
+
+        // 5. Bollinger Bands Chart
+        const bollingerCtx = document.getElementById('bollingerChart').getContext('2d');
+        new Chart(bollingerCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Close', data: chartData.close, borderColor: 'rgba(0,0,0,0.5)', borderWidth: 1, pointRadius: 0, tension: 0.1 },
+                    { label: 'Upper Band', data: chartData.bb_upper, borderColor: 'rgba(108, 117, 125, 0.5)', borderWidth: 1, pointRadius: 0, fill: false, tension: 0.1 },
+                    { label: 'Middle Band', data: chartData.bb_middle, borderColor: 'rgba(108, 117, 125, 0.8)', borderDash: [5, 5], borderWidth: 1, pointRadius: 0, fill: false, tension: 0.1 },
+                    { label: 'Lower Band', data: chartData.bb_lower, borderColor: 'rgba(108, 117, 125, 0.5)', borderWidth: 1, pointRadius: 0, fill: '-1', backgroundColor: 'rgba(108, 117, 125, 0.1)', tension: 0.1 } // Fill area between lower and upper bands
+                ]
+            },
+            options: { 
+                 responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    x: { type: 'time', time: { unit: 'day' }, display: false },
+                    y: { title: { display: true, text: 'Bollinger Bands' } }
+                },
+                plugins: { legend: { display: true, position: 'top' } }
+            }
+        });
+
+        // 6. ATR Chart
+        const atrCtx = document.getElementById('atrChart').getContext('2d');
+        new Chart(atrCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'ATR (14)', data: chartData.atr, borderColor: '#198754', borderWidth: 1.5, pointRadius: 0, tension: 0.1 }
+                ]
+            },
+             options: { 
+                 responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    x: { type: 'time', time: { unit: 'day' }, display: false },
+                    y: { title: { display: true, text: 'ATR' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // 7. Stochastic Oscillator Chart
+        const stochCtx = document.getElementById('stochChart').getContext('2d');
+        new Chart(stochCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: '%K', data: chartData.stoch_k, borderColor: '#0dcaf0', borderWidth: 1.5, pointRadius: 0, tension: 0.1 },
+                    { label: '%D', data: chartData.stoch_d, borderColor: '#ffc107', borderWidth: 1.5, pointRadius: 0, tension: 0.1 }
+                ]
+            },
+            options: { 
+                 responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    x: { type: 'time', time: { unit: 'day' }, display: false },
+                    y: { min: 0, max: 100, title: { display: true, text: 'Stochastic' } }
+                },
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    annotation: { // Add overbought/oversold lines
+                        annotations: {
+                            line1: { type: 'line', yMin: 80, yMax: 80, borderColor: 'rgb(255, 99, 132, 0.5)', borderWidth: 1 },
+                            line2: { type: 'line', yMin: 20, yMax: 20, borderColor: 'rgb(75, 192, 192, 0.5)', borderWidth: 1 }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // 8. Volume Chart (Bar)
+        const volumeCtx = document.getElementById('volumeChart').getContext('2d');
+        new Chart(volumeCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Volume',
+                    data: chartData.volume,
+                    backgroundColor: 'rgba(108, 117, 125, 0.5)', // Grey bars
+                    borderColor: 'rgba(108, 117, 125, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: { 
+                 responsive: true, maintainAspectRatio: false, 
+                scales: { 
+                    x: { type: 'time', time: { unit: 'day' }, display: false },
+                    y: { title: { display: true, text: 'Volume' }, ticks: { callback: function(value) { return value / 1e6 + 'M'; } } } // Format y-axis in millions
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+        
+        // Placeholder for ADX and CCI charts if data becomes available
+        // const adxCtx = document.getElementById('adxChart').getContext('2d');
+        // const cciCtx = document.getElementById('cciChart').getContext('2d');
+
+    });
+</script>
+
+<style>
+    /* Custom styling for the technical analysis page */
+    .progress-ring {
+        position: relative;
+        width: 120px;
+        height: 120px;
+    }
+    
+    .progress-ring__svg {
+        transform: rotate(-90deg);
+    }
+    
+    .progress-ring-circle {
+        transition: stroke-dashoffset 0.35s;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+        stroke-linecap: round;
+    }
+    
+    .progress-ring-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.5em;
+        font-weight: bold;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 250px;
+        width: 100%;
+    }
+    
+    /* Custom tab styling */
+    .nav-tabs .nav-link {
+        color: #6c757d;
+        border: none;
+        border-bottom: 3px solid transparent;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        border-color: transparent;
+        color: #343a40;
+    }
+    
+    .nav-tabs .nav-link.active {
+        border: none;
+        border-bottom: 3px solid #0d6efd;
+        color: #0d6efd;
+        background-color: transparent;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .chart-container {
+            height: 200px;
+        }
+        
+        .progress-ring svg {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .progress-ring-circle-bg, .progress-ring-circle {
+            r: 26;
+            cx: 30;
+            cy: 30;
+        }
+        
+        .progress-text {
+            x: 30;
+            y: 34;
+            font-size: 10px;
+        }
+    }
+</style>
+{% endblock %} 

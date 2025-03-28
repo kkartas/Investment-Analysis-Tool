@@ -18,3 +18,8 @@ alpaca-py
 finnhub-python
 beautifulsoup4
 requests
+scipy
+textblob
+matplotlib
+plotly
+seaborn

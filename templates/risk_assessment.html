@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active">Risk Assessment</li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">{{ ticker_data.company_name }} ({{ ticker_data.symbol }})</h2>
+        <p class="text-muted">Risk Assessment & Financial Health</p>
+    </div>
+</div>
+
+<!-- Risk Score Card -->
+<div class="row mb-4">
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Risk Score</h5>
+                <span class="badge" style="font-size: 14px; background-color: {{ risk_data.risk_color }}">{{ risk_data.risk_category }}</span>
+            </div>
+            <div class="card-body text-center">
+                <div class="risk-gauge mb-3">
+                    <svg width="200" height="100" viewBox="0 0 200 100">
+                        <!-- Background arc -->
+                        <path d="M20,90 A80,80 0 0,1 180,90" stroke="#f0f0f0" stroke-width="20" fill="none"/>
+                        
+                        <!-- Risk level sectors -->
+                        <path d="M20,90 A80,80 0 0,1 52,51.8" stroke="#198754" stroke-width="20" fill="none"/>
+                        <path d="M52,51.8 A80,80 0 0,1 100,30" stroke="#0dcaf0" stroke-width="20" fill="none"/>
+                        <path d="M100,30 A80,80 0 0,1 148,51.8" stroke="#ffc107" stroke-width="20" fill="none"/>
+                        <path d="M148,51.8 A80,80 0 0,1 180,90" stroke="#dc3545" stroke-width="20" fill="none"/>
+                        
+                        <!-- Risk indicator needle -->
+                        <line x1="100" y1="90" x2="{{ 100 + 70 * cos(3.14159 * (1 - risk_data.risk_score / 100)) }}" 
+                              y2="{{ 90 - 70 * sin(3.14159 * (1 - risk_data.risk_score / 100)) }}" 
+                              stroke="#000" stroke-width="3"/>
+                        
+                        <!-- Center point -->
+                        <circle cx="100" cy="90" r="5" fill="#000"/>
+                        
+                        <!-- Risk score text -->
+                        <text x="100" y="75" text-anchor="middle" font-size="24" font-weight="bold">{{ risk_data.risk_score }}</text>
+                        
+                        <!-- Labels -->
+                        <text x="20" y="115" text-anchor="middle" font-size="12">Very Low</text>
+                        <text x="70" y="115" text-anchor="middle" font-size="12">Low</text>
+                        <text x="130" y="115" text-anchor="middle" font-size="12">Moderate</text>
+                        <text x="180" y="115" text-anchor="middle" font-size="12">High</text>
+                    </svg>
+                </div>
+                
+                <p class="mt-2">{{ risk_data.risk_summary }}</p>
+                
+                <div class="d-flex justify-content-around mt-4">
+                    <div class="text-center">
+                        <h6 class="mb-0">Volatility</h6>
+                        <span class="fs-5 {{ 'text-success' if risk_data.volatility < risk_data.benchmark_volatility else 'text-danger' }}">
+                            {{ risk_data.volatility|round(2) }}%
+                        </span>
+                        <div class="small text-muted">vs {{ risk_data.benchmark_volatility|round(2) }}% ({{ risk_data.benchmark }})</div>
+                    </div>
+                    <div class="text-center">
+                        <h6 class="mb-0">Beta</h6>
+                        <span class="fs-5 {{ 'text-success' if risk_data.beta < 1 else 'text-danger' if risk_data.beta > 1.3 else 'text-warning' }}">
+                            {{ risk_data.beta|round(2) }}
+                        </span>
+                        <div class="small text-muted">vs {{ risk_data.benchmark }}</div>
+                    </div>
+                    <div class="text-center">
+                        <h6 class="mb-0">Max Drawdown</h6>
+                        <span class="fs-5 {{ 'text-success' if risk_data.max_drawdown > -20 else 'text-danger' if risk_data.max_drawdown < -30 else 'text-warning' }}">
+                            {{ risk_data.max_drawdown|round(2) }}%
+                        </span>
+                        <div class="small text-muted">Last 12 months</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Risk Metrics Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Key Risk Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>Value at Risk (95%)</th>
+                                <td class="{{ 'text-success' if risk_data.value_at_risk > -3 else 'text-danger' if risk_data.value_at_risk < -5 else 'text-warning' }}">
+                                    {{ risk_data.value_at_risk|round(2) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Sharpe Ratio</th>
+                                <td class="{{ 'text-success' if risk_data.sharpe_ratio > 1 else 'text-danger' if risk_data.sharpe_ratio < 0 else 'text-warning' }}">
+                                    {{ risk_data.sharpe_ratio|round(2) }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Sortino Ratio</th>
+                                <td class="{{ 'text-success' if risk_data.sortino_ratio > 1 else 'text-danger' if risk_data.sortino_ratio < 0 else 'text-warning' }}">
+                                    {{ risk_data.sortino_ratio|round(2) }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Treynor Ratio</th>
+                                <td class="{{ 'text-success' if risk_data.treynor_ratio > 0.1 else 'text-danger' if risk_data.treynor_ratio < 0 else 'text-warning' }}">
+                                    {{ risk_data.treynor_ratio|round(2) }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Jensen's Alpha</th>
+                                <td class="{{ 'text-success' if risk_data.alpha > 0 else 'text-danger' if risk_data.alpha < -2 else 'text-warning' }}">
+                                    {{ risk_data.alpha|round(2) }}%
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Information Ratio</th>
+                                <td class="{{ 'text-success' if risk_data.information_ratio > 0.5 else 'text-danger' if risk_data.information_ratio < 0 else 'text-warning' }}">
+                                    {{ risk_data.information_ratio|round(2) }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>R-Squared</th>
+                                <td>{{ risk_data.r_squared|round(2) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Health Score Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Financial Health</h5>
+                <span class="badge" style="font-size: 14px; background-color: {{ risk_data.financial_health_color }}">
+                    {{ risk_data.financial_health_category }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="circular-progress mb-3">
+                        <svg width="120" height="120" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="#f0f0f0" stroke-width="12"/>
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="{{ risk_data.financial_health_color }}" stroke-width="12" 
+                                    stroke-dasharray="{{ 339.3 * (risk_data.financial_health_score / 100) }} 339.3" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                            <text x="60" y="65" text-anchor="middle" font-size="24" font-weight="bold">{{ risk_data.financial_health_score }}</text>
+                        </svg>
+                    </div>
+                    <p>{{ risk_data.financial_health_summary }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6>Financial Strength Components</h6>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Profitability</span>
+                                <span class="fw-bold {{ 'text-success' if risk_data.financial_components.profitability > 70 else 'text-danger' if risk_data.financial_components.profitability < 40 else 'text-warning' }}">
+                                    {{ risk_data.financial_components.profitability }}
+                                </span>
+                            </div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar {{ 'bg-success' if risk_data.financial_components.profitability > 70 else 'bg-danger' if risk_data.financial_components.profitability < 40 else 'bg-warning' }}" style="width: {{ risk_data.financial_components.profitability }}%"></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Solvency</span>
+                                <span class="fw-bold {{ 'text-success' if risk_data.financial_components.solvency > 70 else 'text-danger' if risk_data.financial_components.solvency < 40 else 'text-warning' }}">
+                                    {{ risk_data.financial_components.solvency }}
+                                </span>
+                            </div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar {{ 'bg-success' if risk_data.financial_components.solvency > 70 else 'bg-danger' if risk_data.financial_components.solvency < 40 else 'bg-warning' }}" style="width: {{ risk_data.financial_components.solvency }}%"></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Liquidity</span>
+                                <span class="fw-bold {{ 'text-success' if risk_data.financial_components.liquidity > 70 else 'text-danger' if risk_data.financial_components.liquidity < 40 else 'text-warning' }}">
+                                    {{ risk_data.financial_components.liquidity }}
+                                </span>
+                            </div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar {{ 'bg-success' if risk_data.financial_components.liquidity > 70 else 'bg-danger' if risk_data.financial_components.liquidity < 40 else 'bg-warning' }}" style="width: {{ risk_data.financial_components.liquidity }}%"></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Efficiency</span>
+                                <span class="fw-bold {{ 'text-success' if risk_data.financial_components.efficiency > 70 else 'text-danger' if risk_data.financial_components.efficiency < 40 else 'text-warning' }}">
+                                    {{ risk_data.financial_components.efficiency }}
+                                </span>
+                            </div>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar {{ 'bg-success' if risk_data.financial_components.efficiency > 70 else 'bg-danger' if risk_data.financial_components.efficiency < 40 else 'bg-warning' }}" style="width: {{ risk_data.financial_components.efficiency }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Bankruptcy Risk (Altman Z-Score)</span>
+                        <span class="badge {{ 'bg-success' if risk_data.altman_z_score > 3 else 'bg-danger' if risk_data.altman_z_score < 1.8 else 'bg-warning' }}">
+                            {{ risk_data.altman_z_score|round(2) }}
+                        </span>
+                    </div>
+                    <div class="progress mt-1" style="height: 8px;">
+                        <div class="progress-bar {{ 'bg-success' if risk_data.altman_z_score > 3 else 'bg-danger' if risk_data.altman_z_score < 1.8 else 'bg-warning' }}" 
+                        style="width: {{ min(risk_data.altman_z_score * 20, 100) }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted mt-1">
+                        <span>Distress</span>
+                        <span>Grey Zone</span>
+                        <span>Safe</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Risk Metrics Charts -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Rolling Volatility</h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-primary active" data-period="30">30D</button>
+                    <button type="button" class="btn btn-outline-primary" data-period="60">60D</button>
+                    <button type="button" class="btn btn-outline-primary" data-period="90">90D</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="volatilityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Drawdown Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="drawdownChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comparative Risk Analysis & Financial Ratios -->
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Risk Factor Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="radar-chart-container" style="position: relative; height: 350px;">
+                    <canvas id="riskRadarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Key Financial Ratios</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2">Profitability Ratios</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Return on Equity</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.roe > 15 else 'text-danger' if risk_data.financial_ratios.roe < 5 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.roe|round(2) }}%
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Return on Assets</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.roa > 5 else 'text-danger' if risk_data.financial_ratios.roa < 2 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.roa|round(2) }}%
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Profit Margin</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.profit_margin > 15 else 'text-danger' if risk_data.financial_ratios.profit_margin < 5 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.profit_margin|round(2) }}%
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2">Solvency Ratios</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Debt-to-Equity</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.debt_to_equity < 1 else 'text-danger' if risk_data.financial_ratios.debt_to_equity > 2 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.debt_to_equity|round(2) }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Interest Coverage</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.interest_coverage > 5 else 'text-danger' if risk_data.financial_ratios.interest_coverage < 2 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.interest_coverage|round(2) }}x
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Debt Ratio</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.debt_ratio < 0.4 else 'text-danger' if risk_data.financial_ratios.debt_ratio > 0.6 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.debt_ratio|round(2) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2">Liquidity Ratios</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Current Ratio</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.current_ratio > 1.5 else 'text-danger' if risk_data.financial_ratios.current_ratio < 1 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.current_ratio|round(2) }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Quick Ratio</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.quick_ratio > 1 else 'text-danger' if risk_data.financial_ratios.quick_ratio < 0.7 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.quick_ratio|round(2) }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Cash Ratio</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.cash_ratio > 0.5 else 'text-danger' if risk_data.financial_ratios.cash_ratio < 0.2 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.cash_ratio|round(2) }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2">Efficiency Ratios</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Asset Turnover</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.asset_turnover > 1 else 'text-danger' if risk_data.financial_ratios.asset_turnover < 0.5 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.asset_turnover|round(2) }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Inventory Turnover</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.inventory_turnover > 10 else 'text-danger' if risk_data.financial_ratios.inventory_turnover < 5 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.inventory_turnover|round(2) }}
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Receivables Turnover</span>
+                            <span class="fw-bold {{ 'text-success' if risk_data.financial_ratios.receivables_turnover > 8 else 'text-danger' if risk_data.financial_ratios.receivables_turnover < 4 else 'text-warning' }}">
+                                {{ risk_data.financial_ratios.receivables_turnover|round(2) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Prepare chart data
+        const chartData = JSON.parse({{ chart_data_json|safe }});
+        
+        // Volatility Chart
+        const volatilityCtx = document.getElementById('volatilityChart').getContext('2d');
+        let volatilityChart = new Chart(volatilityCtx, {
+            type: 'line',
+            data: {
+                labels: chartData.volatility.dates,
+                datasets: [
+                    {
+                        label: '{{ ticker_data.symbol }} Rolling Volatility',
+                        data: chartData.volatility['30'],
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3
+                    },
+                    {
+                        label: '{{ risk_data.benchmark }} Rolling Volatility',
+                        data: chartData.benchmark_volatility['30'],
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Volatility (%)'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.raw;
+                                return `${label}: ${value.toFixed(2)}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Period buttons for volatility chart
+        const periodButtons = document.querySelectorAll('[data-period]');
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Set active state
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update chart data based on period
+                const period = this.dataset.period;
+                volatilityChart.data.datasets[0].data = chartData.volatility[period];
+                volatilityChart.data.datasets[1].data = chartData.benchmark_volatility[period];
+                volatilityChart.update();
+            });
+        });
+        
+        // Drawdown Chart
+        const drawdownCtx = document.getElementById('drawdownChart').getContext('2d');
+        new Chart(drawdownCtx, {
+            type: 'line',
+            data: {
+                labels: chartData.drawdown.dates,
+                datasets: [
+                    {
+                        label: '{{ ticker_data.symbol }} Drawdown',
+                        data: chartData.drawdown.stock,
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3
+                    },
+                    {
+                        label: '{{ risk_data.benchmark }} Drawdown',
+                        data: chartData.drawdown.benchmark,
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                        fill: true,
+                        tension: 0.1,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Drawdown (%)'
+                        },
+                        reverse: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.raw;
+                                return `${label}: ${value.toFixed(2)}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Risk Radar Chart
+        const radarCtx = document.getElementById('riskRadarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: chartData.radar.labels,
+                datasets: [
+                    {
+                        label: '{{ ticker_data.symbol }}',
+                        data: chartData.radar.stock_values,
+                        backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        pointBackgroundColor: 'rgba(13, 110, 253, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Industry Average',
+                        data: chartData.radar.industry_values,
+                        backgroundColor: 'rgba(108, 117, 125, 0.2)',
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        pointBackgroundColor: 'rgba(108, 117, 125, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(108, 117, 125, 1)',
+                        borderWidth: 2,
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true
+                        },
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.raw;
+                                return `${label}: ${value}/100`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<style>
+    /* Risk page specific styling */
+    .circular-progress {
+        position: relative;
+        margin: 0 auto;
+        width: 120px;
+        height: 120px;
+    }
+    
+    .radar-chart-container {
+        margin: 0 auto;
+        max-width: 400px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .risk-gauge svg {
+            width: 100%;
+            max-width: 200px;
+        }
+        
+        .circular-progress {
+            width: 100px;
+            height: 100px;
+        }
+        
+        .circular-progress svg {
+            width: 100px;
+            height: 100px;
+        }
+    }
+</style>
+{% endblock %} 

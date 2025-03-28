@@ -1,0 +1,648 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active">Earnings Analysis</li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">{{ ticker_data.company_name }} ({{ ticker_data.symbol }})</h2>
+        <p class="text-muted">Earnings Analysis</p>
+    </div>
+</div>
+
+<!-- Next Earnings Info -->
+<div class="row mb-4">
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Next Earnings</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-column align-items-center text-center">
+                    {% if earnings_data.next_earnings_date %}
+                    <div class="position-relative d-inline-block mb-3">
+                        <div class="earnings-countdown-ring">
+                            <svg width="160" height="160" viewBox="0 0 160 160">
+                                <circle cx="80" cy="80" r="70" fill="none" stroke="#e9ecef" stroke-width="12"/>
+                                <circle cx="80" cy="80" r="70" fill="none" stroke="#0d6efd" stroke-width="12" 
+                                    stroke-dasharray="{{ 439.6 * (earnings_data.days_until_next_earnings / 90) }} 439.6" stroke-dashoffset="0" transform="rotate(-90 80 80)"/>
+                            </svg>
+                            <div class="countdown-text">
+                                <div class="days-count">{{ earnings_data.days_until_next_earnings }}</div>
+                                <div class="days-label">days</div>
+                            </div>
+                        </div>
+                    </div>
+                    <h4 class="mb-1">{{ earnings_data.next_earnings_date }}</h4>
+                    <p class="text-muted">Estimated Announcement</p>
+                    
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>EPS Estimate:</span>
+                            <span class="fw-bold">${{ earnings_data.next_eps_estimate }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Revenue Estimate:</span>
+                            <span class="fw-bold">{{ earnings_data.next_revenue_estimate }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Fiscal Quarter:</span>
+                            <span class="fw-bold">{{ earnings_data.next_fiscal_quarter }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0 w-100">
+                        <i class="bi bi-info-circle me-2"></i> No upcoming earnings date has been announced yet.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Earnings Trend Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Earnings Trend</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 250px;">
+                    <canvas id="earningsTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Surprise History Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Surprise History</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 250px;">
+                    <canvas id="surpriseHistoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Earnings Surprise with Price Reaction -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Earnings Surprises with Price Reaction</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 400px;">
+                    <canvas id="surpriseReactionChart"></canvas>
+                </div>
+                <div class="mt-3 small text-muted text-center">
+                    Price reaction shows the percentage change from 1 day before to 5 days after earnings announcement
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Earnings History Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Earnings History</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="showAllQuarters">Show All Quarters</button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="earningsTable">
+                        <thead>
+                            <tr>
+                                <th>Quarter</th>
+                                <th>Date</th>
+                                <th>EPS Estimate</th>
+                                <th>EPS Actual</th>
+                                <th>Surprise</th>
+                                <th>Revenue Estimate</th>
+                                <th>Revenue Actual</th>
+                                <th>Revenue Surprise</th>
+                                <th>Price Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quarter in earnings_data.history %}
+                            <tr {% if loop.index > 8 %}class="d-none extra-quarters"{% endif %}>
+                                <td>{{ quarter.fiscal_quarter }}</td>
+                                <td>{{ quarter.date }}</td>
+                                <td>${{ quarter.eps_estimate }}</td>
+                                <td>${{ quarter.eps_actual }}</td>
+                                <td class="{% if quarter.eps_surprise_pct > 0 %}text-success{% elif quarter.eps_surprise_pct < 0 %}text-danger{% endif %}">
+                                    {{ quarter.eps_surprise_pct }}%
+                                </td>
+                                <td>{{ quarter.revenue_estimate }}</td>
+                                <td>{{ quarter.revenue_actual }}</td>
+                                <td class="{% if quarter.revenue_surprise_pct > 0 %}text-success{% elif quarter.revenue_surprise_pct < 0 %}text-danger{% endif %}">
+                                    {{ quarter.revenue_surprise_pct }}%
+                                </td>
+                                <td class="{% if quarter.price_change > 0 %}text-success{% elif quarter.price_change < 0 %}text-danger{% endif %}">
+                                    {{ quarter.price_change }}%
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analyst Revisions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">EPS Estimate Revisions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="chart-container" style="position: relative; height: 300px;">
+                            <canvas id="epsRevisionsChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Time Frame</th>
+                                        <th>Current</th>
+                                        <th>7 Days Ago</th>
+                                        <th>30 Days Ago</th>
+                                        <th>60 Days Ago</th>
+                                        <th>90 Days Ago</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Current Quarter</td>
+                                        <td class="fw-bold">${{ earnings_data.revisions.current_quarter.current }}</td>
+                                        <td class="{% if earnings_data.revisions.current_quarter.current > earnings_data.revisions.current_quarter.days_7 %}text-success{% elif earnings_data.revisions.current_quarter.current < earnings_data.revisions.current_quarter.days_7 %}text-danger{% endif %}">
+                                            ${{ earnings_data.revisions.current_quarter.days_7 }}
+                                        </td>
+                                        <td>${{ earnings_data.revisions.current_quarter.days_30 }}</td>
+                                        <td>${{ earnings_data.revisions.current_quarter.days_60 }}</td>
+                                        <td>${{ earnings_data.revisions.current_quarter.days_90 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Next Quarter</td>
+                                        <td class="fw-bold">${{ earnings_data.revisions.next_quarter.current }}</td>
+                                        <td class="{% if earnings_data.revisions.next_quarter.current > earnings_data.revisions.next_quarter.days_7 %}text-success{% elif earnings_data.revisions.next_quarter.current < earnings_data.revisions.next_quarter.days_7 %}text-danger{% endif %}">
+                                            ${{ earnings_data.revisions.next_quarter.days_7 }}
+                                        </td>
+                                        <td>${{ earnings_data.revisions.next_quarter.days_30 }}</td>
+                                        <td>${{ earnings_data.revisions.next_quarter.days_60 }}</td>
+                                        <td>${{ earnings_data.revisions.next_quarter.days_90 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Current Year</td>
+                                        <td class="fw-bold">${{ earnings_data.revisions.current_year.current }}</td>
+                                        <td class="{% if earnings_data.revisions.current_year.current > earnings_data.revisions.current_year.days_7 %}text-success{% elif earnings_data.revisions.current_year.current < earnings_data.revisions.current_year.days_7 %}text-danger{% endif %}">
+                                            ${{ earnings_data.revisions.current_year.days_7 }}
+                                        </td>
+                                        <td>${{ earnings_data.revisions.current_year.days_30 }}</td>
+                                        <td>${{ earnings_data.revisions.current_year.days_60 }}</td>
+                                        <td>${{ earnings_data.revisions.current_year.days_90 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Next Year</td>
+                                        <td class="fw-bold">${{ earnings_data.revisions.next_year.current }}</td>
+                                        <td class="{% if earnings_data.revisions.next_year.current > earnings_data.revisions.next_year.days_7 %}text-success{% elif earnings_data.revisions.next_year.current < earnings_data.revisions.next_year.days_7 %}text-danger{% endif %}">
+                                            ${{ earnings_data.revisions.next_year.days_7 }}
+                                        </td>
+                                        <td>${{ earnings_data.revisions.next_year.days_30 }}</td>
+                                        <td>${{ earnings_data.revisions.next_year.days_60 }}</td>
+                                        <td>${{ earnings_data.revisions.next_year.days_90 }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle showing all quarters
+        const showAllQuartersBtn = document.getElementById('showAllQuarters');
+        const extraQuarters = document.querySelectorAll('.extra-quarters');
+        
+        showAllQuartersBtn.addEventListener('click', function() {
+            extraQuarters.forEach(quarter => {
+                quarter.classList.toggle('d-none');
+            });
+            
+            if (this.textContent === 'Show All Quarters') {
+                this.textContent = 'Show Recent Quarters';
+            } else {
+                this.textContent = 'Show All Quarters';
+            }
+        });
+        
+        // Prepare chart data
+        const chartData = {{ earnings_data.chart_data|tojson }};
+        
+        // Earnings Trend Chart
+        const trendCtx = document.getElementById('earningsTrendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: chartData.trend.dates,
+                datasets: [
+                    {
+                        label: 'EPS Actual',
+                        data: chartData.trend.eps_actual,
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(13, 110, 253, 1)',
+                        fill: false
+                    },
+                    {
+                        label: 'EPS Estimate',
+                        data: chartData.trend.eps_estimate,
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(108, 117, 125, 1)',
+                        borderDash: [5, 5],
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'EPS ($)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.raw;
+                                return `${label}: $${value.toFixed(2)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Surprise History Chart
+        const surpriseCtx = document.getElementById('surpriseHistoryChart').getContext('2d');
+        new Chart(surpriseCtx, {
+            type: 'bar',
+            data: {
+                labels: chartData.surprise.dates,
+                datasets: [{
+                    label: 'EPS Surprise %',
+                    data: chartData.surprise.eps_surprise_pct,
+                    backgroundColor: function(context) {
+                        const value = context.dataset.data[context.dataIndex];
+                        return value >= 0 ? 'rgba(25, 135, 84, 0.7)' : 'rgba(220, 53, 69, 0.7)';
+                    },
+                    borderColor: function(context) {
+                        const value = context.dataset.data[context.dataIndex];
+                        return value >= 0 ? 'rgba(25, 135, 84, 1)' : 'rgba(220, 53, 69, 1)';
+                    },
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Surprise (%)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                return `Surprise: ${value.toFixed(2)}%`;
+                            },
+                            afterLabel: function(context) {
+                                const index = context.dataIndex;
+                                const estimate = chartData.surprise.eps_estimate[index];
+                                const actual = chartData.surprise.eps_actual[index];
+                                return [
+                                    `Estimate: $${estimate.toFixed(2)}`,
+                                    `Actual: $${actual.toFixed(2)}`
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Surprise Reaction Chart
+        const reactionCtx = document.getElementById('surpriseReactionChart').getContext('2d');
+        new Chart(reactionCtx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Surprise vs Price Reaction',
+                    data: chartData.reaction.data.map(item => ({
+                        x: item.eps_surprise_pct,
+                        y: item.price_reaction
+                    })),
+                    backgroundColor: function(context) {
+                        const x = context.raw.x;
+                        const y = context.raw.y;
+                        
+                        if (x >= 0 && y >= 0) return 'rgba(25, 135, 84, 0.7)';  // Beat & Up
+                        if (x >= 0 && y < 0) return 'rgba(255, 193, 7, 0.7)';   // Beat & Down
+                        if (x < 0 && y >= 0) return 'rgba(13, 110, 253, 0.7)';  // Miss & Up
+                        return 'rgba(220, 53, 69, 0.7)';                        // Miss & Down
+                    },
+                    borderColor: function(context) {
+                        const x = context.raw.x;
+                        const y = context.raw.y;
+                        
+                        if (x >= 0 && y >= 0) return 'rgba(25, 135, 84, 1)';  // Beat & Up
+                        if (x >= 0 && y < 0) return 'rgba(255, 193, 7, 1)';   // Beat & Down
+                        if (x < 0 && y >= 0) return 'rgba(13, 110, 253, 1)';  // Miss & Up
+                        return 'rgba(220, 53, 69, 1)';                        // Miss & Down
+                    },
+                    pointRadius: 8,
+                    pointHoverRadius: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'EPS Surprise (%)'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Price Reaction (%)'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const index = context.dataIndex;
+                                const item = chartData.reaction.data[index];
+                                return `${item.date} (${item.fiscal_quarter})`;
+                            },
+                            afterLabel: function(context) {
+                                const index = context.dataIndex;
+                                const item = chartData.reaction.data[index];
+                                return [
+                                    `EPS Surprise: ${item.eps_surprise_pct.toFixed(2)}%`,
+                                    `Price Reaction: ${item.price_reaction.toFixed(2)}%`,
+                                    `Estimate: $${item.eps_estimate.toFixed(2)}`,
+                                    `Actual: $${item.eps_actual.toFixed(2)}`
+                                ];
+                            }
+                        }
+                    },
+                    annotation: {
+                        annotations: {
+                            xZero: {
+                                type: 'line',
+                                xMin: 0,
+                                xMax: 0,
+                                borderColor: 'rgba(0, 0, 0, 0.2)',
+                                borderWidth: 1,
+                                borderDash: [5, 5]
+                            },
+                            yZero: {
+                                type: 'line',
+                                yMin: 0,
+                                yMax: 0,
+                                borderColor: 'rgba(0, 0, 0, 0.2)',
+                                borderWidth: 1,
+                                borderDash: [5, 5]
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // EPS Revisions Chart
+        const revisionsCtx = document.getElementById('epsRevisionsChart').getContext('2d');
+        new Chart(revisionsCtx, {
+            type: 'line',
+            data: {
+                labels: ['90 Days Ago', '60 Days Ago', '30 Days Ago', '7 Days Ago', 'Current'],
+                datasets: [
+                    {
+                        label: 'Current Quarter',
+                        data: [
+                            chartData.revisions.current_quarter.days_90,
+                            chartData.revisions.current_quarter.days_60,
+                            chartData.revisions.current_quarter.days_30,
+                            chartData.revisions.current_quarter.days_7,
+                            chartData.revisions.current_quarter.current
+                        ],
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        fill: false
+                    },
+                    {
+                        label: 'Next Quarter',
+                        data: [
+                            chartData.revisions.next_quarter.days_90,
+                            chartData.revisions.next_quarter.days_60,
+                            chartData.revisions.next_quarter.days_30,
+                            chartData.revisions.next_quarter.days_7,
+                            chartData.revisions.next_quarter.current
+                        ],
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        fill: false
+                    },
+                    {
+                        label: 'Current Year',
+                        data: [
+                            chartData.revisions.current_year.days_90,
+                            chartData.revisions.current_year.days_60,
+                            chartData.revisions.current_year.days_30,
+                            chartData.revisions.current_year.days_7,
+                            chartData.revisions.current_year.current
+                        ],
+                        borderColor: 'rgba(25, 135, 84, 1)',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        fill: false
+                    },
+                    {
+                        label: 'Next Year',
+                        data: [
+                            chartData.revisions.next_year.days_90,
+                            chartData.revisions.next_year.days_60,
+                            chartData.revisions.next_year.days_30,
+                            chartData.revisions.next_year.days_7,
+                            chartData.revisions.next_year.current
+                        ],
+                        borderColor: 'rgba(111, 66, 193, 1)',
+                        backgroundColor: 'rgba(111, 66, 193, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'EPS Estimate ($)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.raw;
+                                return `${label}: $${value.toFixed(2)}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<style>
+    /* Earnings page styling */
+    .earnings-countdown-ring {
+        position: relative;
+        width: 160px;
+        height: 160px;
+    }
+    
+    .countdown-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+    
+    .days-count {
+        font-size: 36px;
+        font-weight: bold;
+        line-height: 1;
+    }
+    
+    .days-label {
+        font-size: 14px;
+        color: #6c757d;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 250px;
+        width: 100%;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .earnings-countdown-ring {
+            width: 120px;
+            height: 120px;
+        }
+        
+        .earnings-countdown-ring svg {
+            width: 120px;
+            height: 120px;
+        }
+        
+        .days-count {
+            font-size: 28px;
+        }
+        
+        .chart-container {
+            height: 220px;
+        }
+    }
+</style>
+{% endblock %} 

@@ -1,0 +1,577 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active">Peer Comparison</li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">{{ ticker_data.company_name }} ({{ ticker_data.symbol }})</h2>
+        <div class="d-flex align-items-center">
+            <p class="text-muted mb-0 me-3">Industry: {{ ticker_data.industry }}</p>
+            <p class="text-muted mb-0">Sector: {{ ticker_data.sector }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Peers Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Peer Companies</h5>
+                <button id="compareBtn" class="btn btn-sm btn-primary" disabled>Compare Selected</button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover peer-table">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="selectAllPeers">
+                                    </div>
+                                </th>
+                                <th>Symbol</th>
+                                <th>Company</th>
+                                <th>Market Cap</th>
+                                <th>Price</th>
+                                <th>1Y Return</th>
+                                <th>P/E</th>
+                                <th>Dividend Yield</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Main company row -->
+                            <tr class="main-company-row">
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input peer-checkbox" type="checkbox" value="{{ ticker_data.symbol }}" checked disabled>
+                                    </div>
+                                </td>
+                                <td><strong>{{ ticker_data.symbol }}</strong></td>
+                                <td>{{ ticker_data.company_name }}</td>
+                                <td>{{ ticker_data.market_cap }}</td>
+                                <td>${{ ticker_data.current_price }}</td>
+                                <td class="{% if ticker_data.one_year_return > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ ticker_data.one_year_return }}%
+                                </td>
+                                <td>{{ ticker_data.pe_ratio }}</td>
+                                <td>{{ ticker_data.dividend_yield }}%</td>
+                            </tr>
+                            
+                            <!-- Peer company rows -->
+                            {% for peer in peer_data.peers %}
+                            <tr>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input peer-checkbox" type="checkbox" value="{{ peer.symbol }}">
+                                    </div>
+                                </td>
+                                <td>{{ peer.symbol }}</td>
+                                <td>{{ peer.company_name }}</td>
+                                <td>{{ peer.market_cap }}</td>
+                                <td>${{ peer.current_price }}</td>
+                                <td class="{% if peer.one_year_return > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ peer.one_year_return }}%
+                                </td>
+                                <td>{{ peer.pe_ratio }}</td>
+                                <td>{{ peer.dividend_yield }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics Comparison -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Valuation Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="valuationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Growth Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="growthChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Profitability Metrics</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="profitabilityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Financial Health</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="financialHealthChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Comparison -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Price Performance Comparison</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="btn-group" role="group" aria-label="Time Period">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" data-period="1m">1M</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-period="3m">3M</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-period="6m">6M</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-period="1y">1Y</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-period="3y">3Y</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-period="5y">5Y</button>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="normalizeToggle" checked>
+                        <label class="form-check-label" for="normalizeToggle">Normalize Returns (%)</label>
+                    </div>
+                </div>
+                <div class="chart-container" style="position: relative; height: 400px;">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Metrics Table -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Detailed Metrics Comparison</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>{{ ticker_data.symbol }}</th>
+                                {% for peer in comparison_data.selected_peers %}
+                                <th>{{ peer.symbol }}</th>
+                                {% endfor %}
+                                <th>Industry Avg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Valuation Metrics -->
+                            <tr class="table-light">
+                                <th colspan="{{ 3 + comparison_data.selected_peers|length }}">Valuation</th>
+                            </tr>
+                            {% for metric in comparison_data.metrics.valuation %}
+                            <tr>
+                                <td>{{ metric.name }}</td>
+                                <td class="{{ 'table-success' if metric.is_better_than_avg else 'table-danger' if metric.is_worse_than_avg else '' }}">
+                                    {{ metric.value }}{{ metric.unit }}
+                                </td>
+                                {% for peer_value in metric.peer_values %}
+                                <td>{{ peer_value.value }}{{ metric.unit }}</td>
+                                {% endfor %}
+                                <td>{{ metric.industry_avg }}{{ metric.unit }}</td>
+                            </tr>
+                            {% endfor %}
+                            
+                            <!-- Growth Metrics -->
+                            <tr class="table-light">
+                                <th colspan="{{ 3 + comparison_data.selected_peers|length }}">Growth</th>
+                            </tr>
+                            {% for metric in comparison_data.metrics.growth %}
+                            <tr>
+                                <td>{{ metric.name }}</td>
+                                <td class="{{ 'table-success' if metric.is_better_than_avg else 'table-danger' if metric.is_worse_than_avg else '' }}">
+                                    {{ metric.value }}{{ metric.unit }}
+                                </td>
+                                {% for peer_value in metric.peer_values %}
+                                <td>{{ peer_value.value }}{{ metric.unit }}</td>
+                                {% endfor %}
+                                <td>{{ metric.industry_avg }}{{ metric.unit }}</td>
+                            </tr>
+                            {% endfor %}
+                            
+                            <!-- Profitability Metrics -->
+                            <tr class="table-light">
+                                <th colspan="{{ 3 + comparison_data.selected_peers|length }}">Profitability</th>
+                            </tr>
+                            {% for metric in comparison_data.metrics.profitability %}
+                            <tr>
+                                <td>{{ metric.name }}</td>
+                                <td class="{{ 'table-success' if metric.is_better_than_avg else 'table-danger' if metric.is_worse_than_avg else '' }}">
+                                    {{ metric.value }}{{ metric.unit }}
+                                </td>
+                                {% for peer_value in metric.peer_values %}
+                                <td>{{ peer_value.value }}{{ metric.unit }}</td>
+                                {% endfor %}
+                                <td>{{ metric.industry_avg }}{{ metric.unit }}</td>
+                            </tr>
+                            {% endfor %}
+                            
+                            <!-- Financial Health Metrics -->
+                            <tr class="table-light">
+                                <th colspan="{{ 3 + comparison_data.selected_peers|length }}">Financial Health</th>
+                            </tr>
+                            {% for metric in comparison_data.metrics.financial_health %}
+                            <tr>
+                                <td>{{ metric.name }}</td>
+                                <td class="{{ 'table-success' if metric.is_better_than_avg else 'table-danger' if metric.is_worse_than_avg else '' }}">
+                                    {{ metric.value }}{{ metric.unit }}
+                                </td>
+                                {% for peer_value in metric.peer_values %}
+                                <td>{{ peer_value.value }}{{ metric.unit }}</td>
+                                {% endfor %}
+                                <td>{{ metric.industry_avg }}{{ metric.unit }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Helper function to get company colors
+        function getCompanyColor(index, alpha = 1) {
+            const colors = [
+                `rgba(13, 110, 253, ${alpha})`,  // Main company (blue)
+                `rgba(220, 53, 69, ${alpha})`,   // Red
+                `rgba(25, 135, 84, ${alpha})`,   // Green
+                `rgba(255, 193, 7, ${alpha})`,   // Yellow
+                `rgba(111, 66, 193, ${alpha})`,  // Purple
+                `rgba(23, 162, 184, ${alpha})`,  // Cyan
+                `rgba(255, 102, 0, ${alpha})`,   // Orange
+                `rgba(108, 117, 125, ${alpha})`  // Gray
+            ];
+            return colors[index % colors.length];
+        }
+        
+        // Checkbox handling for peer comparison
+        const selectAllCheckbox = document.getElementById('selectAllPeers');
+        const peerCheckboxes = document.querySelectorAll('.peer-checkbox:not([disabled])');
+        const compareBtn = document.getElementById('compareBtn');
+        
+        // Update compare button state
+        function updateCompareBtn() {
+            const checkedCount = document.querySelectorAll('.peer-checkbox:checked:not([disabled])').length;
+            compareBtn.disabled = checkedCount === 0;
+        }
+        
+        // Handle select all checkbox
+        selectAllCheckbox.addEventListener('change', function() {
+            peerCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateCompareBtn();
+        });
+        
+        // Handle individual checkboxes
+        peerCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                // Update select all checkbox
+                selectAllCheckbox.checked = [...peerCheckboxes].every(cb => cb.checked);
+                selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && [...peerCheckboxes].some(cb => cb.checked);
+                
+                updateCompareBtn();
+            });
+        });
+        
+        // Compare button action
+        compareBtn.addEventListener('click', function() {
+            const selectedPeers = [...document.querySelectorAll('.peer-checkbox:checked')].map(cb => cb.value);
+            // Redirect to the comparison page with selected peers
+            window.location.href = `/peer_comparison?symbol={{ ticker_data.symbol }}&peers=${selectedPeers.join(',')}`;
+        });
+        
+        // Initialize charts
+        // This is sample code - actual implementation would use the real data
+        const valuationMetrics = {{ comparison_data.chart_data.valuation|tojson }};
+        const growthMetrics = {{ comparison_data.chart_data.growth|tojson }};
+        const profitabilityMetrics = {{ comparison_data.chart_data.profitability|tojson }};
+        const financialHealthMetrics = {{ comparison_data.chart_data.financial_health|tojson }};
+        
+        // Valuation Chart
+        const valuationCtx = document.getElementById('valuationChart').getContext('2d');
+        new Chart(valuationCtx, {
+            type: 'bar',
+            data: {
+                labels: valuationMetrics.metrics,
+                datasets: valuationMetrics.companies.map((company, index) => ({
+                    label: company.symbol,
+                    data: company.values,
+                    backgroundColor: getCompanyColor(index, 0.7),
+                    borderColor: getCompanyColor(index, 1),
+                    borderWidth: 1
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+        
+        // Growth Chart
+        const growthCtx = document.getElementById('growthChart').getContext('2d');
+        new Chart(growthCtx, {
+            type: 'bar',
+            data: {
+                labels: growthMetrics.metrics,
+                datasets: growthMetrics.companies.map((company, index) => ({
+                    label: company.symbol,
+                    data: company.values,
+                    backgroundColor: getCompanyColor(index, 0.7),
+                    borderColor: getCompanyColor(index, 1),
+                    borderWidth: 1
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+        
+        // Profitability Chart
+        const profitabilityCtx = document.getElementById('profitabilityChart').getContext('2d');
+        new Chart(profitabilityCtx, {
+            type: 'bar',
+            data: {
+                labels: profitabilityMetrics.metrics,
+                datasets: profitabilityMetrics.companies.map((company, index) => ({
+                    label: company.symbol,
+                    data: company.values,
+                    backgroundColor: getCompanyColor(index, 0.7),
+                    borderColor: getCompanyColor(index, 1),
+                    borderWidth: 1
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+        
+        // Financial Health Chart
+        const financialHealthCtx = document.getElementById('financialHealthChart').getContext('2d');
+        new Chart(financialHealthCtx, {
+            type: 'radar',
+            data: {
+                labels: financialHealthMetrics.metrics,
+                datasets: financialHealthMetrics.companies.map((company, index) => ({
+                    label: company.symbol,
+                    data: company.values,
+                    backgroundColor: getCompanyColor(index, 0.2),
+                    borderColor: getCompanyColor(index, 1),
+                    borderWidth: 2,
+                    pointBackgroundColor: getCompanyColor(index, 1),
+                    pointRadius: 3
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+        
+        // Performance Chart
+        const performanceData = {{ comparison_data.chart_data.performance|tojson }};
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        let performanceChart = new Chart(performanceCtx, {
+            type: 'line',
+            data: {
+                labels: performanceData.dates,
+                datasets: performanceData.companies.map((company, index) => ({
+                    label: company.symbol,
+                    data: company.normalized_prices,
+                    borderColor: getCompanyColor(index, 1),
+                    backgroundColor: getCompanyColor(index, 0.1),
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.1,
+                    fill: false
+                }))
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Normalized Return (%)'
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y;
+                                return `${label}: ${value.toFixed(2)}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Time period buttons for performance chart
+        const periodButtons = document.querySelectorAll('[data-period]');
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Set active state
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Filter data based on period
+                const period = this.dataset.period;
+                let dates, normalizedData, absoluteData;
+                
+                // Update chart (this is a placeholder - would need real data filtering logic)
+                // In a real application, you would either make an AJAX call to get new data
+                // or filter the existing data based on the selected period
+                // For demonstration, we'll just update with the same data
+                
+                performanceChart.update();
+            });
+        });
+        
+        // Toggle between normalized and absolute prices
+        const normalizeToggle = document.getElementById('normalizeToggle');
+        normalizeToggle.addEventListener('change', function() {
+            // Switch between normalized and absolute prices
+            performanceChart.data.datasets.forEach((dataset, index) => {
+                const company = performanceData.companies[index];
+                dataset.data = this.checked ? company.normalized_prices : company.absolute_prices;
+            });
+            
+            // Update y-axis title
+            performanceChart.options.scales.y.title.text = this.checked ? 
+                'Normalized Return (%)' : 'Price ($)';
+            
+            performanceChart.update();
+        });
+    });
+</script>
+
+<style>
+    /* Peer comparison styling */
+    .peer-table .main-company-row {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    
+    /* Custom styling for radar chart */
+    #financialHealthChart {
+        max-height: 350px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .chart-container {
+            height: 250px;
+        }
+    }
+</style>
+{% endblock %} 

@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item active">Dividend Dashboard</li>
+            </ol>
+        </nav>
+        <h2 class="mb-0">{{ ticker_data.company_name }} ({{ ticker_data.symbol }})</h2>
+        <p class="text-muted">Dividend Analysis</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Dividend Summary Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Dividend Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="stat-card">
+                            <h6 class="text-muted">Current Yield</h6>
+                            <h3 class="display-6 {% if dividend_data.current_yield > 3 %}text-success{% elif dividend_data.current_yield < 1 %}text-muted{% else %}text-primary{% endif %}">
+                                {{ dividend_data.current_yield|round(2) }}%
+                            </h3>
+                            <small class="text-muted">
+                                {% if dividend_data.yield_vs_sector > 0 %}
+                                {{ dividend_data.yield_vs_sector|round(2) }}% above sector average
+                                {% else %}
+                                {{ (dividend_data.yield_vs_sector * -1)|round(2) }}% below sector average
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stat-card">
+                            <h6 class="text-muted">Annual Dividend</h6>
+                            <h3 class="display-6">${{ dividend_data.annual_dividend|round(2) }}</h3>
+                            <small class="text-muted">Per share</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stat-card">
+                            <h6 class="text-muted">Payout Ratio</h6>
+                            <h3 class="display-6 {% if dividend_data.payout_ratio > 80 %}text-danger{% elif dividend_data.payout_ratio > 60 %}text-warning{% else %}text-success{% endif %}">
+                                {{ dividend_data.payout_ratio|round(2) }}%
+                            </h3>
+                            <small class="text-muted">Of earnings</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stat-card">
+                            <h6 class="text-muted">Ex-Dividend Date</h6>
+                            <h3 class="text-nowrap">{{ dividend_data.ex_date }}</h3>
+                            <small class="text-muted">Next {{ dividend_data.frequency }} payment</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dividend Growth Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Dividend Growth</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>1-Year Growth</span>
+                        <span class="fw-bold {% if dividend_data.growth_rates['1y'] > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ dividend_data.growth_rates["1y"]|round(2) }}%
+                        </span>
+                    </div>
+                    <div class="progress mb-2" style="height: 8px;">
+                        <div class="progress-bar {% if dividend_data.growth_rates['1y'] > 0 %}bg-success{% else %}bg-danger{% endif %}" role="progressbar" 
+                            style="width: {{ min(max(dividend_data.growth_rates['1y'], 0), 25) / 25 * 100 }}%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>3-Year Growth (CAGR)</span>
+                        <span class="fw-bold {% if dividend_data.growth_rates['3y'] > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ dividend_data.growth_rates["3y"]|round(2) }}%
+                        </span>
+                    </div>
+                    <div class="progress mb-2" style="height: 8px;">
+                        <div class="progress-bar {% if dividend_data.growth_rates['3y'] > 0 %}bg-success{% else %}bg-danger{% endif %}" role="progressbar" 
+                            style="width: {{ min(max(dividend_data.growth_rates['3y'], 0), 25) / 25 * 100 }}%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>5-Year Growth (CAGR)</span>
+                        <span class="fw-bold {% if dividend_data.growth_rates['5y'] > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ dividend_data.growth_rates["5y"]|round(2) }}%
+                        </span>
+                    </div>
+                    <div class="progress mb-2" style="height: 8px;">
+                        <div class="progress-bar {% if dividend_data.growth_rates['5y'] > 0 %}bg-success{% else %}bg-danger{% endif %}" role="progressbar" 
+                            style="width: {{ min(max(dividend_data.growth_rates['5y'], 0), 25) / 25 * 100 }}%"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>10-Year Growth (CAGR)</span>
+                        <span class="fw-bold {% if dividend_data.growth_rates['10y'] > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ dividend_data.growth_rates["10y"]|round(2) }}%
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar {% if dividend_data.growth_rates['10y'] > 0 %}bg-success{% else %}bg-danger{% endif %}" role="progressbar" 
+                            style="width: {{ min(max(dividend_data.growth_rates['10y'], 0), 25) / 25 * 100 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dividend Consistency Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Dividend Consistency</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4 text-center">
+                    <div class="consistency-chart">
+                        <svg width="180" height="180" viewBox="0 0 180 180">
+                            <circle cx="90" cy="90" r="80" fill="none" stroke="#e9ecef" stroke-width="15"/>
+                            <circle cx="90" cy="90" r="80" fill="none" stroke="#0d6efd" stroke-width="15" 
+                                stroke-dasharray="{{ 502 * (dividend_data.consistency_score / 100) }} 502" stroke-dashoffset="0" transform="rotate(-90 90 90)"/>
+                            <text x="90" y="90" text-anchor="middle" dominant-baseline="middle" font-size="36" font-weight="bold">{{ dividend_data.consistency_score|round|int }}</text>
+                            <text x="90" y="115" text-anchor="middle" dominant-baseline="middle" font-size="14">Score</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="mt-2">
+                    <div class="d-flex justify-content-between mb-2">
+                        <div>
+                            <h6 class="mb-0">Years of Growth</h6>
+                            <h4>{{ dividend_data.years_of_growth }}</h4>
+                        </div>
+                        <div class="text-end">
+                            <h6 class="mb-0">Aristocrat Status</h6>
+                            <h4 class="{% if dividend_data.is_aristocrat %}text-success{% else %}text-muted{% endif %}">
+                                {{ "Yes" if dividend_data.is_aristocrat else "No" }}
+                            </h4>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div>
+                            <h6 class="mb-0">Frequency</h6>
+                            <h4>{{ dividend_data.frequency|capitalize }}</h4>
+                        </div>
+                        <div class="text-end">
+                            <h6 class="mb-0">Last Cut</h6>
+                            <h4 class="{% if dividend_data.years_since_cut > 10 %}text-success{% elif dividend_data.years_since_cut > 5 %}text-primary{% else %}text-danger{% endif %}">
+                                {{ dividend_data.years_since_cut }} years ago
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dividend History Chart and Table -->
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Dividend History</h5>
+                <div class="btn-group" role="group" aria-label="Time Period">
+                    <button type="button" class="btn btn-sm btn-outline-primary active" data-period="5y">5Y</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="10y">10Y</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-period="max">Max</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="dividendHistoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Projected Income</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="shares-input" class="form-label">Number of Shares</label>
+                    <input type="number" class="form-control" id="shares-input" value="100" min="1">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Period</th>
+                                <th>Income</th>
+                                <th>Growth</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projected-income">
+                            <tr>
+                                <td>Current Annual</td>
+                                <td class="annual-income">${{ (dividend_data.annual_dividend * 100)|round(2) }}</td>
+                                <td>-</td>
+                            </tr>
+                            <tr>
+                                <td>1 Year (Est.)</td>
+                                <td class="year-1-income">${{ (dividend_data.annual_dividend * (1 + dividend_data.growth_rates['1y']/100) * 100)|round(2) }}</td>
+                                <td>{{ dividend_data.growth_rates["1y"]|round(2) }}%</td>
+                            </tr>
+                            <tr>
+                                <td>3 Years (Est.)</td>
+                                <td class="year-3-income">${{ (dividend_data.annual_dividend * ((1 + dividend_data.growth_rates['3y']/100) ** 3) * 100)|round(2) }}</td>
+                                <td>{{ (((1 + dividend_data.growth_rates['3y']/100) ** 3 - 1) * 100)|round(2) }}%</td>
+                            </tr>
+                            <tr>
+                                <td>5 Years (Est.)</td>
+                                <td class="year-5-income">${{ (dividend_data.annual_dividend * ((1 + dividend_data.growth_rates['5y']/100) ** 5) * 100)|round(2) }}</td>
+                                <td>{{ (((1 + dividend_data.growth_rates['5y']/100) ** 5 - 1) * 100)|round(2) }}%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Dividend Payments -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Dividend Payments</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ex-Dividend Date</th>
+                                <th>Payment Date</th>
+                                <th>Amount</th>
+                                <th>Type</th>
+                                <th>YoY Change</th>
+                                <th>Annualized Yield</th>
+                                <th>Stock Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dividend in dividend_data.history %}
+                            <tr>
+                                <td>{{ dividend.ex_date }}</td>
+                                <td>{{ dividend.payment_date }}</td>
+                                <td>${{ dividend.amount }}</td>
+                                <td>{{ dividend.type }}</td>
+                                <td class="{% if dividend.yoy_change > 0 %}text-success{% elif dividend.yoy_change < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    {{ dividend.yoy_change|round(2) }}%
+                                </td>
+                                <td>{{ dividend.annualized_yield|round(2) }}%</td>
+                                <td>${{ dividend.stock_price }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Dividend History Chart
+        const ctxHistory = document.getElementById('dividendHistoryChart').getContext('2d');
+        let dividendChart = new Chart(ctxHistory, {
+            type: 'bar',
+            data: {
+                labels: {{ dividend_data.chart_data.years|tojson }},
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Annual Dividend',
+                        data: {{ dividend_data.chart_data.amounts|tojson }},
+                        backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                        order: 2
+                    },
+                    {
+                        type: 'line',
+                        label: 'Dividend Yield',
+                        data: {{ dividend_data.chart_data.yields|tojson }},
+                        borderColor: 'rgba(220, 53, 69, 0.8)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        yAxisID: 'y1',
+                        fill: false,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Annual Dividend ($)'
+                        },
+                        beginAtZero: true
+                    },
+                    y1: {
+                        title: {
+                            display: true,
+                            text: 'Dividend Yield (%)'
+                        },
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false
+                        },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const datasetLabel = context.dataset.label || '';
+                                const value = context.raw;
+                                if (datasetLabel === 'Annual Dividend') {
+                                    return datasetLabel + ': $' + value.toFixed(2);
+                                } else {
+                                    return datasetLabel + ': ' + value.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Time period buttons for chart
+        const periodButtons = document.querySelectorAll('[data-period]');
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Set active state
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Filter data based on period
+                const period = this.dataset.period;
+                let years, amounts, yields;
+                
+                if (period === '5y') {
+                    const startIdx = Math.max(0, {{ dividend_data.chart_data.years|length }} - 5);
+                    years = {{ dividend_data.chart_data.years|tojson }}.slice(startIdx);
+                    amounts = {{ dividend_data.chart_data.amounts|tojson }}.slice(startIdx);
+                    yields = {{ dividend_data.chart_data.yields|tojson }}.slice(startIdx);
+                } else if (period === '10y') {
+                    const startIdx = Math.max(0, {{ dividend_data.chart_data.years|length }} - 10);
+                    years = {{ dividend_data.chart_data.years|tojson }}.slice(startIdx);
+                    amounts = {{ dividend_data.chart_data.amounts|tojson }}.slice(startIdx);
+                    yields = {{ dividend_data.chart_data.yields|tojson }}.slice(startIdx);
+                } else {
+                    years = {{ dividend_data.chart_data.years|tojson }};
+                    amounts = {{ dividend_data.chart_data.amounts|tojson }};
+                    yields = {{ dividend_data.chart_data.yields|tojson }};
+                }
+                
+                // Update chart
+                dividendChart.data.labels = years;
+                dividendChart.data.datasets[0].data = amounts;
+                dividendChart.data.datasets[1].data = yields;
+                dividendChart.update();
+            });
+        });
+        
+        // Projected income calculator
+        const sharesInput = document.getElementById('shares-input');
+        const annualIncome = document.querySelector('.annual-income');
+        const year1Income = document.querySelector('.year-1-income');
+        const year3Income = document.querySelector('.year-3-income');
+        const year5Income = document.querySelector('.year-5-income');
+        
+        sharesInput.addEventListener('input', function() {
+            const shares = parseInt(this.value) || 0;
+            const annualDividend = {{ dividend_data.annual_dividend }};
+            const growth1y = {{ dividend_data.growth_rates['1y'] / 100 }};
+            const growth3y = {{ dividend_data.growth_rates['3y'] / 100 }};
+            const growth5y = {{ dividend_data.growth_rates['5y'] / 100 }};
+            
+            annualIncome.textContent = '$' + (annualDividend * shares).toFixed(2);
+            year1Income.textContent = '$' + (annualDividend * (1 + growth1y) * shares).toFixed(2);
+            year3Income.textContent = '$' + (annualDividend * Math.pow(1 + growth3y, 3) * shares).toFixed(2);
+            year5Income.textContent = '$' + (annualDividend * Math.pow(1 + growth5y, 5) * shares).toFixed(2);
+        });
+    });
+</script>
+
+<style>
+    /* Dividend dashboard styling */
+    .stat-card {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        height: 100%;
+    }
+    
+    .stat-card h3 {
+        margin-bottom: 0.25rem;
+    }
+    
+    .consistency-chart {
+        margin: 0 auto;
+        max-width: 180px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .stat-card {
+            padding: 0.75rem;
+        }
+        
+        .stat-card h3 {
+            font-size: 1.5rem;
+        }
+        
+        .consistency-chart svg {
+            width: 150px;
+            height: 150px;
+        }
+    }
+</style>
+{% endblock %} 
