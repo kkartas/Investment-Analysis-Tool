@@ -22,6 +22,7 @@ from models.screener import screen_stocks, get_available_sectors
 from models.dividends import get_dividend_history, calculate_dividend_growth_metrics
 from models.peer_comparison import get_peer_tickers, get_peer_comparison_data
 from models.risk_assessment import assess_risk, compare_risk_metrics, calculate_financial_health_score
+# from models.dca import calculate_dca_investment # <<< COMMENTED OUT
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key'
@@ -479,7 +480,7 @@ def screener():
 @app.route('/news_sentiment')
 def news_sentiment():
     """
-    Display news sentiment analysis for a stock
+    Display news sentiment analysis for a stock using models.news
     """
     symbol = request.args.get('symbol', '').strip()
     
@@ -488,50 +489,99 @@ def news_sentiment():
         return redirect('/')
         
     ticker_data = get_ticker_data(symbol)
-    news_data = get_news_sentiment(symbol) # Fetch raw data
+    # Call the function from models.news
+    news_result = get_news_by_search(symbol, news_count=15, include_sentiment=True) 
     
-    # Prepare data structure specifically for the template
-    articles = news_data.get('articles', [])
-    article_count = len(articles)
-    positive_count = news_data.get('positive_count', 0)
-    negative_count = news_data.get('negative_count', 0)
-    neutral_count = news_data.get('neutral_count', 0)
-    sentiment_score_raw = news_data.get('sentiment_score', 50) # 0-100 scale
+    # Debug the raw result from get_news_by_search
+    print(f"[DEBUG] Result from get_news_by_search for {symbol}: {news_result}")
     
-    # Determine category based on score
-    sentiment_category = 'neutral'
-    if sentiment_score_raw > 60:
-        sentiment_category = 'positive'
-    elif sentiment_score_raw < 40:
-        sentiment_category = 'negative'
+    # Prepare data structure for the template based on news_result format
+    articles = []
+    sentiment_summary = {}
+    trend_data = {'dates': [], 'scores': []}
+
+    if isinstance(news_result, dict) and 'articles' in news_result and 'sentiment_summary' in news_result:
+        articles = news_result.get('articles', [])
+        sentiment_summary = news_result.get('sentiment_summary', {})
         
+        # Create trend data (simplified: average sentiment per day)
+        daily_scores = {}
+        for article in articles:
+            try:
+                # Assuming 'publishedDate' is 'DD/MM/YYYY HH:MM' or similar
+                article_date_str = article.get('publishedDate', '').split(' ')[0]
+                if article_date_str and article_date_str != 'N/A':
+                    # Convert DD/MM/YYYY to YYYY-MM-DD for consistency
+                    dt_obj = datetime.strptime(article_date_str, '%d/%m/%Y')
+                    iso_date = dt_obj.strftime('%Y-%m-%d')
+                    score = article.get('sentiment_score', 0) # TextBlob score is -1 to 1
+                    # Convert TextBlob score (-1 to 1) to 0-100 scale
+                    scaled_score = int((score + 1) / 2 * 100)
+                    
+                    if iso_date not in daily_scores:
+                        daily_scores[iso_date] = []
+                    daily_scores[iso_date].append(scaled_score)
+            except ValueError:
+                 print(f"[WARN] Could not parse date: {article.get('publishedDate', '')}")
+            except Exception as e:
+                 print(f"[WARN] Error processing article date/score: {e}")
+        
+        # Calculate average score per day and sort by date
+        sorted_dates = sorted(daily_scores.keys())
+        for date in sorted_dates:
+            avg_score = sum(daily_scores[date]) / len(daily_scores[date])
+            trend_data['dates'].append(date)
+            trend_data['scores'].append(round(avg_score, 1))
+            
+    elif isinstance(news_result, list): # Handle case where only a list of articles might be returned (no sentiment)
+         articles = news_result
+         print(f"[WARN] get_news_by_search returned a list, not dict. Sentiment data might be missing.")
+    else:
+        print(f"[WARN] Unexpected result format from get_news_by_search: {type(news_result)}")
+
+    article_count = len(articles)
+    positive_count = sentiment_summary.get('counts', {}).get('positive', 0)
+    negative_count = sentiment_summary.get('counts', {}).get('negative', 0)
+    neutral_count = sentiment_summary.get('counts', {}).get('neutral', 0)
+    # Convert avg score (-1 to 1) to 0-100 for display
+    avg_score_raw = sentiment_summary.get('average_score', 0)
+    sentiment_score_scaled = int((avg_score_raw + 1) / 2 * 100)
+    
+    sentiment_category = sentiment_summary.get('overall_sentiment', 'neutral') # Use label directly from model
+
     sentiment_data = {
-        'articles': articles,
+        'articles': articles, # Use articles fetched by get_news_by_search
         'positive_count': positive_count,
         'negative_count': negative_count,
         'neutral_count': neutral_count,
-        'overall_sentiment': sentiment_score_raw, # Use the 0-100 score directly
+        'overall_sentiment': sentiment_score_scaled, # Use the 0-100 scaled score
         'sentiment_category': sentiment_category,
-        'summary': f"Based on {article_count} recent news articles, the sentiment is generally {sentiment_category}.",
+        'summary': f"Based on {article_count} recent news article titles, the sentiment is generally {sentiment_category}.",
         'positive_pct': round((positive_count / article_count * 100) if article_count else 0, 1),
         'negative_pct': round((negative_count / article_count * 100) if article_count else 0, 1),
         'neutral_pct': round((neutral_count / article_count * 100) if article_count else 0, 1),
-        'trend': news_data.get('trend_data', {'dates': [], 'scores': []}) # Keep original trend structure
+        # Trend data is now processed separately above
     }
     
     # Safely serialize trend data for the chart
-    trend_data_cleaned = nan_to_null(sentiment_data['trend'])
+    trend_data_cleaned = nan_to_null(trend_data) # Pass the processed trend_data
     try:
         trend_data_json = Markup(json.dumps(trend_data_cleaned))
     except Exception as e:
         print(f"Error serializing trend_data for news sentiment: {e}")
         trend_data_json = Markup(json.dumps({'dates': [], 'scores': []})) # Fallback
     
+    # Remove previous debug logs
+    # print(f"[DEBUG] Data passed to news_sentiment.html:")
+    # print(f"  ticker_data: {ticker_data}")
+    # print(f"  sentiment_data: {sentiment_data}")
+    # print(f"  trend_data_json: {trend_data_json}")
+
     return render_template(
         'news_sentiment.html',
         ticker_data=ticker_data,
-        sentiment_data=sentiment_data, # Pass the cleaned structure
-        trend_data_json=trend_data_json # Pass the JSON string for the chart
+        sentiment_data=sentiment_data, 
+        trend_data_json=trend_data_json 
     )
 
 @app.route('/dividends')
@@ -1084,137 +1134,6 @@ def get_dividend_data(symbol):
                 'years': [],
                 'amounts': [],
                 'yields': []
-            }
-        }
-
-def get_news_sentiment(symbol):
-    """
-    Get news sentiment data for a stock
-    
-    Args:
-        symbol (str): Stock symbol
-        
-    Returns:
-        dict: News sentiment data including articles and sentiment analysis
-    """
-    try:
-        ticker = yf.Ticker(symbol)
-        news = ticker.news
-        
-        if not news:
-            return {
-                'articles': [],
-                'positive_count': 0,
-                'negative_count': 0,
-                'neutral_count': 0,
-                'sentiment_score': 50,
-                'trend_data': {
-                    'dates': [],
-                    'scores': []
-                }
-            }
-        
-        # Define sentiment words
-        positive_words = [
-            'beat', 'bullish', 'up', 'rise', 'rises', 'rising', 'rose', 'gain', 'gains', 'positive', 
-            'profit', 'profits', 'grow', 'growth', 'increase', 'increases', 'increasing', 'increased',
-            'outperform', 'outperforms', 'outperformed', 'upgrade', 'upgrades', 'upgraded', 'buy', 'strong buy'
-        ]
-        
-        negative_words = [
-            'miss', 'bearish', 'down', 'fall', 'falls', 'falling', 'fell', 'lose', 'loss', 'loses', 
-            'negative', 'against', 'decline', 'declines', 'declining', 'declined', 'decrease', 'decreases',
-            'decreasing', 'decreased', 'underperform', 'underperforms', 'underperformed', 'downgrade', 
-            'downgrades', 'downgraded', 'sell', 'strong sell'
-        ]
-        
-        # Process articles
-        articles = []
-        sentiment_scores = []
-        positive_count = 0
-        negative_count = 0
-        neutral_count = 0
-        dates = []
-        scores = []
-        
-        for article in news[:10]:  # Limit to 10 most recent articles
-            # Compute sentiment
-            title = article.get('title', '').lower()
-            summary = article.get('summary', '').lower()
-            
-            # Count positive and negative words
-            pos_count = sum(1 for word in positive_words if word in title or word in summary)
-            neg_count = sum(1 for word in negative_words if word in title or word in summary)
-            
-            # Calculate sentiment score
-            sentiment_score = 50  # Neutral baseline
-            if pos_count + neg_count > 0:
-                sentiment_score = int((pos_count / (pos_count + neg_count)) * 100)
-            
-            # Categorize sentiment
-            sentiment_category = 'neutral'
-            if sentiment_score > 60:
-                sentiment_category = 'positive'
-                positive_count += 1
-            elif sentiment_score < 40:
-                sentiment_category = 'negative'
-                negative_count += 1
-            else:
-                neutral_count += 1
-            
-            # Format date
-            published_date = datetime.fromtimestamp(article.get('providerPublishTime', 0))
-            formatted_date = published_date.strftime('%Y-%m-%d')
-            
-            # Add to trend data
-            if formatted_date not in dates:
-                dates.append(formatted_date)
-                scores.append(sentiment_score)
-            else:
-                idx = dates.index(formatted_date)
-                scores[idx] = (scores[idx] + sentiment_score) / 2
-            
-            # Format article
-            articles.append({
-                'title': article.get('title', ''),
-                'summary': article.get('summary', ''),
-                'url': article.get('link', ''),
-                'source': article.get('publisher', ''),
-                'date': published_date.strftime('%b %d, %Y'),
-                'sentiment': sentiment_category,
-                'sentiment_score': sentiment_score
-            })
-            
-            sentiment_scores.append(sentiment_score)
-        
-        # Calculate overall sentiment score - safely handle the case of empty sentiment_scores
-        overall_sentiment_score = 50  # Default neutral
-        if sentiment_scores:
-            overall_sentiment_score = int(sum(sentiment_scores) / len(sentiment_scores))
-        
-        return {
-            'articles': articles,
-            'positive_count': positive_count,
-            'negative_count': negative_count,
-            'neutral_count': neutral_count,
-            'sentiment_score': overall_sentiment_score,  # This is now guaranteed to be a number
-            'trend_data': {
-                'dates': dates,
-                'scores': scores
-            }
-        }
-        
-    except Exception as e:
-        print(f"Error getting news sentiment data for {symbol}: {e}")
-        return {
-            'articles': [],
-            'positive_count': 0,
-            'negative_count': 0,
-            'neutral_count': 0,
-            'sentiment_score': 50,  # Default neutral sentiment
-            'trend_data': {
-                'dates': [],
-                'scores': []
             }
         }
 
