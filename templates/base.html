@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Investment Analysis Tool - Stock Market Analysis Platform</title>
     <meta name="description" content="Modern investment analysis platform with real-time data and advanced analytics">
@@ -229,12 +229,38 @@
     </script>
     
     <style>
+        /* Base styles */
+        html, body {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content-wrapper {
+            flex: 1 0 auto;
+            width: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .footer {
+            flex-shrink: 0;
+        }
+
         /* Header styles */
         .main-header {
             position: sticky;
             top: 0;
             z-index: 1020;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #0066cc;
         }
 
         .navbar-brand {
