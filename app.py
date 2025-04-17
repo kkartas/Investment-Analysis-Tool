@@ -9,6 +9,7 @@ import numpy as np
 import json # Added import
 from markupsafe import Markup # Added import
 import traceback
+import random
 
 from models.stock_analysis import calculate_indicators, get_latest_recommendation, get_advanced_recommendation, calculate_custom_indicators
 from models.dca_calculations import dca_calculation, calculate_average_annual_return
@@ -489,50 +490,54 @@ def news_sentiment():
         return redirect('/')
         
     ticker_data = get_ticker_data(symbol)
+    
+    # Only fetch the number of articles needed for the sentiment overview
+    recent_news_count = 15  # Recent articles for the sentiment overview
+    
     # Call the function from models.news
-    news_result = get_news_by_search(symbol, news_count=15, include_sentiment=True) 
+    news_result = get_news_by_search(symbol, news_count=recent_news_count, include_sentiment=True) 
     
     # Debug the raw result from get_news_by_search
-    print(f"[DEBUG] Result from get_news_by_search for {symbol}: {news_result}")
+    print(f"[DEBUG] Result count from get_news_by_search for {symbol}: {len(news_result.get('articles', [])) if isinstance(news_result, dict) else 0}")
     
     # Prepare data structure for the template based on news_result format
     articles = []
     sentiment_summary = {}
-    trend_data = {'dates': [], 'scores': []}
 
     if isinstance(news_result, dict) and 'articles' in news_result and 'sentiment_summary' in news_result:
         articles = news_result.get('articles', [])
         sentiment_summary = news_result.get('sentiment_summary', {})
         
-        # Create trend data (simplified: average sentiment per day)
-        daily_scores = {}
+        # Process articles for display
         for article in articles:
-            try:
-                # Assuming 'publishedDate' is 'DD/MM/YYYY HH:MM' or similar
-                article_date_str = article.get('publishedDate', '').split(' ')[0]
-                if article_date_str and article_date_str != 'N/A':
-                    # Convert DD/MM/YYYY to YYYY-MM-DD for consistency
-                    dt_obj = datetime.strptime(article_date_str, '%d/%m/%Y')
-                    iso_date = dt_obj.strftime('%Y-%m-%d')
-                    score = article.get('sentiment_score', 0) # TextBlob score is -1 to 1
-                    # Convert TextBlob score (-1 to 1) to 0-100 scale
-                    scaled_score = int((score + 1) / 2 * 100)
-                    
-                    if iso_date not in daily_scores:
-                        daily_scores[iso_date] = []
-                    daily_scores[iso_date].append(scaled_score)
-            except ValueError:
-                 print(f"[WARN] Could not parse date: {article.get('publishedDate', '')}")
-            except Exception as e:
-                 print(f"[WARN] Error processing article date/score: {e}")
-        
-        # Calculate average score per day and sort by date
-        sorted_dates = sorted(daily_scores.keys())
-        for date in sorted_dates:
-            avg_score = sum(daily_scores[date]) / len(daily_scores[date])
-            trend_data['dates'].append(date)
-            trend_data['scores'].append(round(avg_score, 1))
+            # Format sentiment score for display in badges (-1 to 1 scale → percentage)
+            raw_score = article.get('sentiment_score', 0)
+            # Convert to 0-100 scale for display
+            badge_score = int((raw_score + 1) / 2 * 100)
+            article['sentiment_score'] = badge_score
             
+            # Map link to url if needed
+            if 'url' not in article and 'link' in article:
+                article['url'] = article['link']
+                
+            # Format source publisher if needed
+            if 'source' not in article and 'publisher' in article:
+                article['source'] = article['publisher']
+                
+            # Format date if needed (assume publishedDate is available)
+            if 'date' not in article and 'publishedDate' in article:
+                date_str = article.get('publishedDate', '')
+                try:
+                    # Try to format date nicely if it's parseable
+                    dt_obj = datetime.strptime(date_str.split()[0], '%d/%m/%Y')
+                    article['date'] = dt_obj.strftime('%b %d, %Y')
+                except:
+                    article['date'] = date_str
+            
+            # Ensure it has a summary
+            if 'summary' not in article or not article['summary']:
+                article['summary'] = "No summary available."
+        
     elif isinstance(news_result, list): # Handle case where only a list of articles might be returned (no sentiment)
          articles = news_result
          print(f"[WARN] get_news_by_search returned a list, not dict. Sentiment data might be missing.")
@@ -560,28 +565,12 @@ def news_sentiment():
         'positive_pct': round((positive_count / article_count * 100) if article_count else 0, 1),
         'negative_pct': round((negative_count / article_count * 100) if article_count else 0, 1),
         'neutral_pct': round((neutral_count / article_count * 100) if article_count else 0, 1),
-        # Trend data is now processed separately above
     }
     
-    # Safely serialize trend data for the chart
-    trend_data_cleaned = nan_to_null(trend_data) # Pass the processed trend_data
-    try:
-        trend_data_json = Markup(json.dumps(trend_data_cleaned))
-    except Exception as e:
-        print(f"Error serializing trend_data for news sentiment: {e}")
-        trend_data_json = Markup(json.dumps({'dates': [], 'scores': []})) # Fallback
-    
-    # Remove previous debug logs
-    # print(f"[DEBUG] Data passed to news_sentiment.html:")
-    # print(f"  ticker_data: {ticker_data}")
-    # print(f"  sentiment_data: {sentiment_data}")
-    # print(f"  trend_data_json: {trend_data_json}")
-
     return render_template(
         'news_sentiment.html',
         ticker_data=ticker_data,
-        sentiment_data=sentiment_data, 
-        trend_data_json=trend_data_json 
+        sentiment_data=sentiment_data,
     )
 
 @app.route('/dividends')

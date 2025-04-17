@@ -78,12 +78,12 @@
                                 <i class="fas fa-chart-bar me-1"></i> Advanced Tools
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="/technical_indicators?symbol={{ result.symbol if result }}"><i class="fas fa-chart-line me-1"></i> Technical Indicators</a></li>
-                                <li><a class="dropdown-item" href="/news_sentiment?symbol={{ result.symbol if result }}"><i class="fas fa-newspaper me-1"></i> News Sentiment</a></li>
-                                <li><a class="dropdown-item" href="/dividends?symbol={{ result.symbol if result }}"><i class="fas fa-money-bill-wave me-1"></i> Dividend Analysis</a></li>
-                                <li><a class="dropdown-item" href="/earnings_analysis?symbol={{ result.symbol if result }}"><i class="fas fa-calendar-check me-1"></i> Earnings Analysis</a></li>
-                                <li><a class="dropdown-item" href="/peer_comparison?symbol={{ result.symbol if result }}"><i class="fas fa-users me-1"></i> Peer Comparison</a></li>
-                                <li><a class="dropdown-item" href="/risk_assessment?symbol={{ result.symbol if result }}"><i class="fas fa-shield-alt me-1"></i> Risk Assessment</a></li>
+                                <li><a class="dropdown-item" href="/technical_indicators?symbol={{ symbol if symbol is defined else (ticker_data.symbol if ticker_data is defined else (result.symbol if result is defined else '')) }}"><i class="fas fa-chart-line me-1"></i> Technical Indicators</a></li>
+                                <li><a class="dropdown-item" href="/news_sentiment?symbol={{ symbol if symbol is defined else (ticker_data.symbol if ticker_data is defined else (result.symbol if result is defined else '')) }}"><i class="fas fa-newspaper me-1"></i> News Sentiment</a></li>
+                                <li><a class="dropdown-item" href="/dividends?symbol={{ symbol if symbol is defined else (ticker_data.symbol if ticker_data is defined else (result.symbol if result is defined else '')) }}"><i class="fas fa-money-bill-wave me-1"></i> Dividend Analysis</a></li>
+                                <li><a class="dropdown-item" href="/earnings_analysis?symbol={{ symbol if symbol is defined else (ticker_data.symbol if ticker_data is defined else (result.symbol if result is defined else '')) }}"><i class="fas fa-calendar-check me-1"></i> Earnings Analysis</a></li>
+                                <li><a class="dropdown-item" href="/peer_comparison?symbol={{ symbol if symbol is defined else (ticker_data.symbol if ticker_data is defined else (result.symbol if result is defined else '')) }}"><i class="fas fa-users me-1"></i> Peer Comparison</a></li>
+                                <li><a class="dropdown-item" href="/risk_assessment?symbol={{ symbol if symbol is defined else (ticker_data.symbol if ticker_data is defined else (result.symbol if result is defined else '')) }}"><i class="fas fa-shield-alt me-1"></i> Risk Assessment</a></li>
                             </ul>
                         </li>
                     </ul>
